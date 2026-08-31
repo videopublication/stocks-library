@@ -75,9 +75,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Artlist Asset Library & Automated Relay",
-    version="1.4.0",
-    description="Local relay and shared asset library for Artlist",
+    title="Setu • Creative Asset Bridge & Studio Sangraha",
+    version="2.0.0",
+    description="Universal local relay and shared asset library for Artlist and Envato Elements",
     lifespan=lifespan,
 )
 

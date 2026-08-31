@@ -1,4 +1,4 @@
-# Internal Stock Asset Relay System: Security & Architecture Overview
+# Setu (सेतु) • Internal Stock Asset Bridge & Studio Sangraha: Security & Architecture Overview
 
 ## 1. Executive Summary & Business Pain Point
 
@@ -10,9 +10,9 @@ Currently, this creates two major challenges:
 2. **Productivity Bottleneck:** Editors frequently have to interrupt the account holder to manually download individual audio tracks, video templates, and stems, causing project turnaround delays and workflow friction.
 
 ### The Solution:
-We have developed an **Internal Stock Asset Relay System**—a lightweight, locally hosted service running on a single dedicated machine that holds the authorized stock subscription sessions.
+We have developed **Setu (सेतु)**—a lightweight, locally hosted creative asset bridge running on a single dedicated machine that holds the authorized stock subscription sessions.
 
-Team members submit asset URLs (e.g., `artlist.io/...` or `elements.envato.com/...`) to an internal local web dashboard. The relay automatically downloads the asset, indexes it into our local shared media library (`library/`), and serves it to team members without exposing credentials or requiring direct browser logins on client editing machines.
+Team members submit asset URLs (e.g., `artlist.io/...` or `elements.envato.com/...`) to an internal local web dashboard. The bridge automatically downloads the asset, indexes it into our local shared media library (*Sangraha* / `library/`), and serves it to team members without exposing credentials or requiring direct browser logins on client editing machines.
 
 ```
 ┌────────────────────────┐         ┌────────────────────────────────────────────────────────┐

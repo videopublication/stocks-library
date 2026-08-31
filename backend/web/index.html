@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="light dark">
-  <title>Artlist Library</title>
+  <title>Setu • Creative Asset Bridge</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -28,20 +28,18 @@
     <span class="mark" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
            stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 18V5l12-2v13"></path>
-        <circle cx="6" cy="18" r="3"></circle>
-        <circle cx="18" cy="16" r="3"></circle>
+        <path d="M4 19h16M4 15h16M4 11h16M9 11v8M15 11v8M4 7l8-4 8 4"></path>
       </svg>
     </span>
     <div class="wordmark">
-      <h1>Artlist Library</h1>
-      <p>Local download relay</p>
+      <h1>Setu</h1>
+      <p>Creative Asset Bridge</p>
     </div>
   </div>
 
   <div class="toolbar-trail">
     <span class="pill" id="server-status">
-      <i class="dot" aria-hidden="true"></i><span class="text">Relay active</span>
+      <i class="dot" aria-hidden="true"></i><span class="text">Bridge active</span>
     </span>
     <span class="pill" id="session-status">
       <i class="dot" aria-hidden="true"></i><span class="text">Checking</span>
@@ -62,38 +60,36 @@
 
     <section class="panel">
       <div class="panel-head">
-        <h2>Search library</h2>
-        <span class="hint">No quota</span>
+        <h2>Sangraha (Library)</h2>
+        <span class="hint">Instant</span>
       </div>
-      <p class="panel-note">Check what you already have before downloading again.</p>
+      <p class="panel-note">Check cached studio media before downloading.</p>
       <div class="field search">
         <svg class="field-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
              stroke-width="1.5" aria-hidden="true">
           <circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5L14 14"></path>
         </svg>
-        <input type="search" id="library-search-input" placeholder="Track name or ID" autofocus>
+        <input type="search" id="library-search-input" placeholder="Search title, ID, or tag" autofocus>
         <button type="button" id="clear-search-btn" class="field-clear" aria-label="Clear search">✕</button>
       </div>
     </section>
 
     <section class="panel">
-      <div class="panel-head"><h2>Add a track</h2></div>
+      <div class="panel-head"><h2>Queue Asset</h2></div>
       <form id="submit-form" novalidate>
-        <label class="label" for="track-url">Artlist URL</label>
+        <label class="label" for="track-url">Stock Asset URL</label>
         <div class="field">
           <input type="url" id="track-url"
-                 placeholder="artlist.io/royalty-free-music/song/…" required>
+                 placeholder="artlist.io/... or elements.envato.com/..." required>
         </div>
 
         <div class="field-row">
           <div>
             <label class="label" for="track-variant">Version</label>
             <div class="field select">
-              <!-- Artlist offers the main track and stems. The extra options here
-                   came from the original spec, not the site. -->
               <select id="track-variant">
-                <option value="main">Main track</option>
-                <option value="stems">Stems</option>
+                <option value="main">Main track / Asset</option>
+                <option value="stems">Stems (ZIP)</option>
               </select>
             </div>
           </div>
@@ -109,7 +105,7 @@
         </div>
 
         <button type="submit" id="submit-btn" class="btn-primary btn-block">
-          <span class="btn-text">Add to library</span>
+          <span class="btn-text">Bridge to Library</span>
         </button>
       </form>
       <div id="submit-result" class="result-banner hidden"></div>

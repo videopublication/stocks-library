@@ -1,6 +1,6 @@
-# 🎵 Artlist Asset Library & Automated Download Relay
+# 🌉 Setu (सेतु) • Creative Asset Bridge & Studio Sangraha
 
-A high-performance, automated music and sound effects licensing relay and shared asset library for Artlist. Designed to eliminate manual download friction, build a permanent team audio library, and operate with **effective zero ban risk** through authentic human-mimicry behavioral automation.
+A high-performance, automated stock media bridge and shared asset library for **Artlist** and **Envato Elements**. Designed to eliminate manual download bottlenecks, build a permanent studio media archive (*Sangraha*), and operate securely with zero credential sharing and authentic human-mimicry behavioral automation.
 
 ---
 

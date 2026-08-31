@@ -137,8 +137,8 @@ def focus_chrome_safely(chrome_win):
 
 def close_chrome_tab_safely(chrome_win):
     """
-    Safely closes ONLY the Artlist track tab.
-    Strictly protects the Relay Dashboard tab (127.0.0.1:5000 / 'Artlist Library') from being closed.
+    Safely closes ONLY the active stock asset tab.
+    Strictly protects the Setu Dashboard tab (127.0.0.1:5000 / 'Setu' / 'Artlist Library') from being closed.
     """
     try:
         if not chrome_win:
@@ -146,15 +146,15 @@ def close_chrome_tab_safely(chrome_win):
         
         # Check active window title
         win_title = chrome_win.window_text() if hasattr(chrome_win, "window_text") else ""
-        if "artlist library" in win_title.lower() or "127.0.0.1" in win_title or "localhost" in win_title:
-            print("[OS Agent] Active tab is Relay Dashboard (127.0.0.1:5000). Protecting dashboard from Ctrl+W.")
+        if "setu" in win_title.lower() or "artlist library" in win_title.lower() or "127.0.0.1" in win_title or "localhost" in win_title:
+            print("[OS Agent] Active tab is Setu Dashboard (127.0.0.1:5000). Protecting dashboard from Ctrl+W.")
             return
 
         try:
             doc = get_page_document(chrome_win)
             doc_name = doc.window_text() if hasattr(doc, "window_text") else ""
-            if "artlist library" in doc_name.lower() or "127.0.0.1" in doc_name or "localhost" in doc_name:
-                print("[OS Agent] Document is Relay Dashboard. Protecting dashboard from Ctrl+W.")
+            if "setu" in doc_name.lower() or "artlist library" in doc_name.lower() or "127.0.0.1" in doc_name or "localhost" in doc_name:
+                print("[OS Agent] Document is Setu Dashboard. Protecting dashboard from Ctrl+W.")
                 return
         except Exception:
             pass
@@ -164,8 +164,8 @@ def close_chrome_tab_safely(chrome_win):
         if hwnd and win32gui.GetForegroundWindow() == hwnd:
             # Re-check foreground window title before sending hotkey
             fg_title = win32gui.GetWindowText(hwnd)
-            if "artlist library" in fg_title.lower() or "127.0.0.1" in fg_title or "localhost" in fg_title:
-                print("[OS Agent] Foreground window is Relay Dashboard. Skipping Ctrl+W.")
+            if "setu" in fg_title.lower() or "artlist library" in fg_title.lower() or "127.0.0.1" in fg_title or "localhost" in fg_title:
+                print("[OS Agent] Foreground window is Setu Dashboard. Skipping Ctrl+W.")
                 return
 
             pyautogui.hotkey('ctrl', 'w')

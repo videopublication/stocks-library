@@ -40,7 +40,7 @@ def main():
 
     bar = "=" * 70
     print(bar)
-    print(" ARTLIST ASSET LIBRARY & DOWNLOAD RELAY")
+    print(" SETU (सेतु) • CREATIVE ASSET BRIDGE & STUDIO SANGRAHA")
     print(bar)
     print(f" Staging directory : {settings.STAGING_PATH}")
     print(f" Library directory : {settings.LIBRARY_PATH}")
