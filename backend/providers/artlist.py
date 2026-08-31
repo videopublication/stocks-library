@@ -20,11 +20,13 @@ class ArtlistProvider(BaseStockProvider):
         return "Artlist"
 
     def match_url(self, url: str) -> bool:
-        netloc = urlparse(url.strip()).netloc.lower()
-        return "artlist.io" in netloc
+        cleaned = (url or "").strip().lower()
+        return "artlist.io" in cleaned
 
     def parse_url(self, url: str) -> Dict[str, Any]:
         u = url.strip()
+        if not u.startswith("http://") and not u.startswith("https://"):
+            u = "https://" + u
         parsed = urlparse(u)
         path = parsed.path.rstrip("/")
         parts = [p for p in path.split("/") if p]
@@ -61,6 +63,8 @@ class ArtlistProvider(BaseStockProvider):
 
     def normalize_url(self, url: str) -> str:
         u = url.strip()
+        if not u.startswith("http://") and not u.startswith("https://"):
+            u = "https://" + u
         parsed = urlparse(u)
         path = parsed.path.rstrip("/")
         parts = [p for p in path.split("/") if p]

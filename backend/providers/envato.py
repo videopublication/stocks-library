@@ -21,11 +21,13 @@ class EnvatoProvider(BaseStockProvider):
         return "Envato Elements"
 
     def match_url(self, url: str) -> bool:
-        netloc = urlparse(url.strip()).netloc.lower()
-        return "elements.envato.com" in netloc or "envato.com" in netloc
+        cleaned = (url or "").strip().lower()
+        return "elements.envato.com" in cleaned or "envato.com" in cleaned
 
     def parse_url(self, url: str) -> Dict[str, Any]:
         u = url.strip()
+        if not u.startswith("http://") and not u.startswith("https://"):
+            u = "https://" + u
         parsed = urlparse(u)
         path = parsed.path.rstrip("/")
         parts = [p for p in path.split("/") if p]
