@@ -89,12 +89,13 @@ def init_db():
         """)
         
         # --- migrations -------------------------------------------------
-        # Live progress columns, added after the first release. ALTER TABLE is
-        # used rather than a schema bump so existing databases keep their data.
-        # Source URL on tracks, so the library can link back to Artlist.
         track_cols = {row[1] for row in conn.execute("PRAGMA table_info(tracks)")}
         if "url" not in track_cols:
             conn.execute("ALTER TABLE tracks ADD COLUMN url TEXT")
+        if "provider" not in track_cols:
+            conn.execute("ALTER TABLE tracks ADD COLUMN provider TEXT NOT NULL DEFAULT 'artlist'")
+        if "category" not in track_cols:
+            conn.execute("ALTER TABLE tracks ADD COLUMN category TEXT NOT NULL DEFAULT 'music'")
 
         existing = {row[1] for row in conn.execute("PRAGMA table_info(jobs)")}
         migrations = {
@@ -103,6 +104,8 @@ def init_db():
             "phase_updated_at": "TEXT",
             "progress_bytes": "INTEGER NOT NULL DEFAULT 0",
             "total_bytes": "INTEGER NOT NULL DEFAULT 0",
+            "provider": "TEXT NOT NULL DEFAULT 'artlist'",
+            "category": "TEXT NOT NULL DEFAULT 'music'",
         }
         for column, ddl in migrations.items():
             if column not in existing:

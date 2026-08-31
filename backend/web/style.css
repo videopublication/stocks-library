@@ -1,40 +1,42 @@
 /* ==========================================================================
-   Artlist Library — Apple system-app idiom, light and dark.
-
-   One family, six weights, Apple's own text ramp (11/12/13/15/17/21/28) with
-   negative tracking on the large sizes. Near-monochrome with a single accent;
-   colour is reserved for state. Separation comes from material and hairlines,
-   not from borders drawn around everything.
+   Setu (सेतु) — Studio Asset Bridge & Sangraha UI (Isha Aesthetic)
+   Dark Obsidian, Warm Radiant Copper, and Slate Stone.
    ========================================================================== */
 
-/* --- Tokens: light is the base ------------------------------------------- */
+/* --- Tokens: Dark Obsidian & Copper (Isha Aesthetic) --------------------- */
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  --canvas:        #F5F5F7;
-  --surface:       #FFFFFF;
-  --surface-sunk:  #F0F0F2;
-  --ink:           #1D1D1F;
-  --ink-2:         #6E6E73;
-  --ink-3:         #8E8E93;
-  --hairline:      rgba(0, 0, 0, 0.10);
-  --hairline-soft: rgba(0, 0, 0, 0.06);
-  --fill:          rgba(0, 0, 0, 0.05);
-  --fill-hover:    rgba(0, 0, 0, 0.08);
+  --canvas:        #0a0c10;
+  --surface:       #131720;
+  --surface-sunk:  #0e1117;
+  --surface-glass: rgba(19, 23, 32, 0.82);
+  --ink:           #f2f4f8;
+  --ink-2:         #9aa3b5;
+  --ink-3:         #6b768c;
+  --hairline:      rgba(255, 255, 255, 0.08);
+  --hairline-soft: rgba(255, 255, 255, 0.04);
+  --fill:          rgba(255, 255, 255, 0.05);
+  --fill-hover:    rgba(255, 255, 255, 0.09);
 
-  --accent:        #0071E3;
-  --accent-ink:    #FFFFFF;
-  --accent-soft:   rgba(0, 113, 227, 0.10);
-  --green:         #1D9F4B;
-  --orange:        #C2740B;
-  --red:           #D2352B;
-  --green-soft:    rgba(29, 159, 75, 0.10);
-  --orange-soft:   rgba(194, 116, 11, 0.10);
-  --red-soft:      rgba(210, 53, 43, 0.10);
+  /* Isha Warm Copper & Terracotta Palette */
+  --accent:        #d97736;
+  --accent-hover:  #e68744;
+  --accent-ink:    #ffffff;
+  --accent-soft:   rgba(217, 119, 54, 0.16);
+  --accent-glow:   rgba(217, 119, 54, 0.35);
 
-  --shadow:        0 1px 2px rgba(0,0,0,.05), 0 6px 20px rgba(0,0,0,.05);
+  --copper-gold:   #f4a261;
+  --green:         #2ec4b6;
+  --orange:        #e76f51;
+  --red:           #e63946;
+  --green-soft:    rgba(46, 196, 182, 0.14);
+  --orange-soft:   rgba(231, 111, 81, 0.14);
+  --red-soft:      rgba(230, 57, 70, 0.14);
+
+  --shadow:        0 4px 20px rgba(0,0,0, 0.35), 0 1px 3px rgba(0,0,0, 0.2);
   --shadow-toolbar: 0 1px 0 var(--hairline-soft);
-  --toolbar-bg:    rgba(245, 245, 247, 0.72);
+  --toolbar-bg:    rgba(10, 12, 16, 0.85);
 
   --r-sm: 6px;
   --r-md: 10px;
@@ -42,62 +44,35 @@
   --r-pill: 980px;
 
   --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
-  --dur: 220ms;
+  --dur: 200ms;
 
-  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter",
-          "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Dark: applied by system preference unless the user has chosen light… */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
+:root[data-theme="light"] {
+  color-scheme: light;
 
-    --canvas:        #000000;
-    --surface:       #1C1C1E;
-    --surface-sunk:  #2C2C2E;
-    --ink:           #F5F5F7;
-    --ink-2:         #A1A1A6;
-    --ink-3:         #8E8E93;
-    --hairline:      rgba(255, 255, 255, 0.12);
-    --hairline-soft: rgba(255, 255, 255, 0.08);
-    --fill:          rgba(255, 255, 255, 0.07);
-    --fill-hover:    rgba(255, 255, 255, 0.12);
+  --canvas:        #f4f5f8;
+  --surface:       #ffffff;
+  --surface-sunk:  #ebedf2;
+  --surface-glass: rgba(255, 255, 255, 0.88);
+  --ink:           #141820;
+  --ink-2:         #5a6475;
+  --ink-3:         #8893a6;
+  --hairline:      rgba(0, 0, 0, 0.08);
+  --hairline-soft: rgba(0, 0, 0, 0.04);
+  --fill:          rgba(0, 0, 0, 0.04);
+  --fill-hover:    rgba(0, 0, 0, 0.07);
 
-    --accent:        #0A84FF;
-    --accent-soft:   rgba(10, 132, 255, 0.16);
-    --green:         #30D158;
-    --orange:        #FF9F0A;
-    --red:           #FF453A;
-    --green-soft:    rgba(48, 209, 88, 0.14);
-    --orange-soft:   rgba(255, 159, 10, 0.14);
-    --red-soft:      rgba(255, 69, 58, 0.14);
+  --accent:        #c2652b;
+  --accent-hover:  #d97736;
+  --accent-ink:    #ffffff;
+  --accent-soft:   rgba(194, 101, 43, 0.12);
+  --accent-glow:   rgba(194, 101, 43, 0.25);
 
-    --shadow:        0 1px 2px rgba(0,0,0,.5);
-    --toolbar-bg:    rgba(0, 0, 0, 0.62);
-  }
+  --shadow:        0 2px 10px rgba(0,0,0, 0.06);
+  --toolbar-bg:    rgba(244, 245, 248, 0.88);
 }
-
-/* …and by explicit choice, which must win in both directions. */
-:root[data-theme="dark"] {
-  color-scheme: dark;
-
-  --canvas:        #000000;
-  --surface:       #1C1C1E;
-  --surface-sunk:  #2C2C2E;
-  --ink:           #F5F5F7;
-  --ink-2:         #A1A1A6;
-  --ink-3:         #8E8E93;
-  --hairline:      rgba(255, 255, 255, 0.12);
-  --hairline-soft: rgba(255, 255, 255, 0.08);
-  --fill:          rgba(255, 255, 255, 0.07);
-  --fill-hover:    rgba(255, 255, 255, 0.12);
-
-  --accent:        #0A84FF;
-  --accent-soft:   rgba(10, 132, 255, 0.16);
-  --green:         #30D158;
-  --orange:        #FF9F0A;
-  --red:           #FF453A;
   --green-soft:    rgba(48, 209, 88, 0.14);
   --orange-soft:   rgba(255, 159, 10, 0.14);
   --red-soft:      rgba(255, 69, 58, 0.14);
@@ -804,11 +779,253 @@ a.rtitle:hover { color: var(--accent); text-decoration: underline; }
 }
 a.track-name:hover { color: var(--accent); text-decoration: underline; }
 
-.row-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.row-actions { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
 
 /* A track without stems is an answer, not a failure. */
 .recent-row.is-info .recent-icon {
   background: var(--accent-soft);
   color: var(--accent);
   font-weight: 600;
+}
+
+/* --- Category Filter Pills ------------------------------------------------ */
+.category-filter-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 0 12px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--hairline-soft);
+  scrollbar-width: none;
+}
+.category-filter-bar::-webkit-scrollbar { display: none; }
+
+.cat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--surface-sunk);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-pill);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--dur) var(--ease);
+}
+.cat-pill:hover {
+  background: var(--fill-hover);
+  color: var(--ink);
+  border-color: var(--hairline);
+}
+.cat-pill.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+  font-weight: 600;
+}
+
+/* --- Provider & Category Badges ------------------------------------------- */
+.badge-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.badge-tag.artlist {
+  background: rgba(217, 119, 54, 0.15);
+  color: var(--copper-gold);
+  border: 1px solid rgba(217, 119, 54, 0.3);
+}
+.badge-tag.envato {
+  background: rgba(46, 196, 182, 0.15);
+  color: #2ec4b6;
+  border: 1px solid rgba(46, 196, 182, 0.3);
+}
+.badge-tag.music { background: var(--fill); color: var(--ink-2); }
+.badge-tag.sfx { background: var(--fill); color: var(--ink-2); }
+.badge-tag.template { background: rgba(155, 93, 229, 0.15); color: #c77dff; }
+
+/* Dynamic URL Input Badge */
+.url-input-wrap {
+  position: relative;
+}
+.url-detected-badge {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  pointer-events: none;
+  transition: all var(--dur) var(--ease);
+}
+
+/* --- Action Icon Buttons (Play, Copy, Reveal) ------------------------------ */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  background: var(--surface-sunk);
+  border: 1px solid var(--hairline);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
+}
+.btn-icon:hover {
+  background: var(--fill-hover);
+  color: var(--accent);
+  border-color: var(--accent-soft);
+  transform: translateY(-1px);
+}
+.btn-icon.is-playing {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+.btn-icon svg { width: 14px; height: 14px; }
+
+/* --- Persistent Bottom Audio Player Bar ------------------------------------ */
+.player-bar {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 32px);
+  max-width: 860px;
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 10px 35px rgba(0,0,0, 0.45), 0 0 20px var(--accent-glow);
+  border-radius: var(--r-lg);
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  z-index: 1000;
+  animation: slideUp 0.28s var(--ease);
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  max-width: 220px;
+}
+.player-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.player-sub {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.player-play-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px var(--accent-glow);
+  transition: transform var(--dur) var(--ease);
+}
+.player-play-btn:hover { transform: scale(1.06); }
+.player-play-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+.player-progress-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.player-time {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  color: var(--ink-2);
+  min-width: 35px;
+}
+.player-scrubber {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 5px;
+  border-radius: var(--r-pill);
+  background: var(--surface-sunk);
+  outline: none;
+  cursor: pointer;
+}
+.player-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+  cursor: pointer;
+}
+
+/* Toast Notifications */
+.toast-box {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  color: var(--ink);
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: fadeIn 0.2s var(--ease);
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
 }

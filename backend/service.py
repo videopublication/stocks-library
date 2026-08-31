@@ -13,6 +13,7 @@ from typing import Optional, Tuple, List, Dict, Any
 
 from backend.config import settings
 from backend.database import get_db
+from backend.providers import get_provider_for_url, parse_stock_url
 
 # Regex to parse Artlist track ID from all Music, SFX, and short URL patterns
 ARTLIST_URL_PATTERN = re.compile(
@@ -548,11 +549,21 @@ def get_status_summary() -> Dict[str, Any]:
 
 def submit_new_job(url: str, variant: str = "main", format_type: str = "WAV",
                    requested_by: str = "local_editor") -> Dict[str, Any]:
-    """Submit a track URL for downloading or instant cache resolution."""
-    canonical_url = normalize_artlist_url(url)
-    track_id = parse_artlist_url(canonical_url)
+    """Submit a track or asset URL for downloading or instant cache resolution."""
+    try:
+        parsed_stock = parse_stock_url(url)
+        canonical_url = parsed_stock["canonical_url"]
+        track_id = parsed_stock["track_id"]
+        provider_name = parsed_stock["provider"]
+        category = parsed_stock["category"]
+    except Exception:
+        canonical_url = normalize_artlist_url(url)
+        track_id = parse_artlist_url(canonical_url)
+        provider_name = "artlist"
+        category = "music"
+
     if not track_id:
-        raise ValueError("Invalid Artlist URL: unable to parse track ID")
+        raise ValueError("Invalid stock URL: unable to parse track/asset ID")
 
     variant = variant.lower().strip()
     format_type = format_type.upper().strip()
@@ -577,12 +588,15 @@ def submit_new_job(url: str, variant: str = "main", format_type: str = "WAV",
                 c_row = conn.execute("SELECT downloads FROM counters WHERE day = ?", (today,)).fetchone()
                 d_count = c_row["downloads"] if c_row else 0
 
+                track_d = dict(track)
                 return {
                     "type": "cached",
                     "job_id": str(uuid.uuid4()),
                     "status": "cached",
                     "track_id": track_id,
                     "variant": variant,
+                    "provider": track_d.get("provider", "artlist"),
+                    "category": track_d.get("category", "music"),
                     "filename": track["filename"],
                     "library_path": str(track["library_path"]),
                     "first_licensed_by": track["requested_by"],
@@ -624,12 +638,11 @@ def submit_new_job(url: str, variant: str = "main", format_type: str = "WAV",
         """).fetchone()
         pending = queued_row["cnt"] if queued_row else 0
 
-        # Count work already committed (done today + still pending) against the cap,
-        # otherwise 20 rapid submissions all pass a counter that is still reading 0.
+        # Count work already committed against the cap
         if today_downloads + pending >= settings.DAILY_SAFETY_LIMIT:
             raise PermissionError(
                 f"Daily safety quota reached ({today_downloads} done + {pending} pending "
-                f"/ {settings.DAILY_SAFETY_LIMIT}). Use your personal Artlist seat for urgent downloads."
+                f"/ {settings.DAILY_SAFETY_LIMIT}). Use your personal stock seat for urgent downloads."
             )
 
         job_id = str(uuid.uuid4())
@@ -637,9 +650,9 @@ def submit_new_job(url: str, variant: str = "main", format_type: str = "WAV",
 
         conn.execute("""
             INSERT INTO jobs (
-                id, url, track_id, variant, format, requested_by, source, status, created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'web_portal', 'queued', ?)
-        """, (job_id, canonical_url, track_id, variant, format_type, requested_by, now))
+                id, url, track_id, variant, format, requested_by, source, status, created_at, provider, category
+            ) VALUES (?, ?, ?, ?, ?, ?, 'web_portal', 'queued', ?, ?, ?)
+        """, (job_id, canonical_url, track_id, variant, format_type, requested_by, now, provider_name, category))
 
         pos_row = conn.execute("""
             SELECT COUNT(*) as pos FROM jobs WHERE status = 'queued' AND created_at <= ?
@@ -652,6 +665,8 @@ def submit_new_job(url: str, variant: str = "main", format_type: str = "WAV",
             "type": "queued",
             "job_id": job_id,
             "status": "queued",
+            "provider": provider_name,
+            "category": category,
             "queue_position": queue_pos,
             "estimated_wait_seconds": est_wait,
             "daily_usage": f"{today_downloads}/{settings.DAILY_SAFETY_LIMIT}"
@@ -794,17 +809,22 @@ def complete_worker_job(job_id: str, temp_filename: str, reported_bytes: int,
             WHERE id = ?
         """, (final_name, str(target_path), final_bytes, now, temp_filename, now, job_id))
 
-        # hit_count starts at 0: a freshly downloaded track has not been reused
-        # yet. Seeding it at 1 made every new track claim a cache hit it never had.
+        # Extract provider and category from claimed job
+        job_keys = job.keys() if hasattr(job, "keys") else []
+        provider_name = job["provider"] if "provider" in job_keys and job["provider"] else "artlist"
+        category = job["category"] if "category" in job_keys and job["category"] else "music"
+
         conn.execute("""
             INSERT INTO tracks (
                 track_id, variant, title, filename, library_path, bytes,
-                first_job_id, requested_by, downloaded_at, hit_count, url
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+                first_job_id, requested_by, downloaded_at, hit_count, url, provider, category
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)
             ON CONFLICT(track_id, variant) DO UPDATE SET
                 hit_count = hit_count + 1,
                 library_path = excluded.library_path,
-                downloaded_at = excluded.downloaded_at
+                downloaded_at = excluded.downloaded_at,
+                provider = excluded.provider,
+                category = excluded.category
         """, (
             job["track_id"],
             job["variant"],
@@ -815,7 +835,9 @@ def complete_worker_job(job_id: str, temp_filename: str, reported_bytes: int,
             job_id,
             job["requested_by"],
             now,
-            job["url"]
+            job["url"],
+            provider_name,
+            category,
         ))
 
         conn.execute("""
@@ -879,8 +901,7 @@ def fail_worker_job(job_id: str, reason: str, retryable: bool = True):
                 WHERE id = ?
             """, (attempts, reason, now, now, job_id))
 
-        # Explicit consecutive-failure counter. Ordering jobs by created_at does
-        # not work: a newly queued job sits in the window and blocks the trip.
+        # Explicit consecutive-failure counter
         streak = int(get_health(conn, "consecutive_failures", "0") or 0) + 1
         set_health(conn, "consecutive_failures", str(streak))
 
@@ -927,21 +948,40 @@ def resume_queue() -> None:
 
 # -------------------------------------------------------------------- library
 
-def search_library(query: str = "") -> List[Dict[str, Any]]:
-    """Search library tracks by title, filename, or track_id."""
+def search_library(query: str = "", category: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Search library tracks by title, filename, or track_id with optional category filter."""
     with get_db(write=False) as conn:
+        sql = "SELECT * FROM tracks"
+        conditions = []
+        params = []
+
         if query:
             param = f"%{query}%"
-            rows = conn.execute("""
-                SELECT * FROM tracks
-                WHERE title LIKE ? OR filename LIKE ? OR track_id LIKE ?
-                ORDER BY downloaded_at DESC LIMIT 50
-            """, (param, param, param)).fetchall()
-        else:
-            rows = conn.execute("""
-                SELECT * FROM tracks ORDER BY downloaded_at DESC LIMIT 50
-            """).fetchall()
-        return [dict(r) for r in rows]
+            conditions.append("(title LIKE ? OR filename LIKE ? OR track_id LIKE ?)")
+            params.extend([param, param, param])
+
+        if category and category.lower() != "all":
+            conditions.append("category = ?")
+            params.append(category.lower())
+
+        if conditions:
+            sql += " WHERE " + " AND ".join(conditions)
+
+        sql += " ORDER BY downloaded_at DESC LIMIT 60"
+        rows = conn.execute(sql, tuple(params)).fetchall()
+
+        results = []
+        for r in rows:
+            d = dict(r)
+            p = Path(d.get("library_path", ""))
+            suffix = p.suffix.lower()
+            d["exists"] = p.exists()
+            d["streamable"] = suffix in (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".aiff")
+            d["is_archive"] = suffix == ".zip"
+            d["provider"] = d.get("provider") or "artlist"
+            d["category"] = d.get("category") or "music"
+            results.append(d)
+        return results
 
 
 def _unlinked_id(filename: str) -> str:

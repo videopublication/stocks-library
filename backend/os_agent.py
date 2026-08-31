@@ -482,6 +482,33 @@ def watch_download_with_diff(job: Dict[str, Any], staging_dir: Path, pre_snapsho
 
 # ------------------------------------------------------------- Workflow Execution
 
+def locate_envato_download_target(chrome_win) -> Tuple[int, int]:
+    """Finds the primary Download button on an Envato Elements page."""
+    if is_vision_enabled():
+        pt = locate_element_with_gemini("the primary green download button on the Envato Elements item page")
+        if pt:
+            return pt
+
+    # Search for Envato Download button via UIA (min_x=180, min_y=150)
+    dl_rect = find_uia_element(
+        chrome_win,
+        title_re=r"(?i)^(Download|Download\s*now|Add\s*to\s*project.*|Free\s*download)$",
+        control_types=["Button", "Hyperlink", "Custom"],
+        min_x=180,
+        min_y=150,
+        timeout=5.0
+    )
+    if dl_rect:
+        return dl_rect.mid_point().x, dl_rect.mid_point().y
+
+    # Fallback to broader download match
+    dl_rect = find_uia_element(chrome_win, title_re=r"(?i).*download.*", min_x=180, min_y=150, max_y_ratio=0.75, timeout=4.0)
+    if dl_rect:
+        return dl_rect.mid_point().x, dl_rect.mid_point().y
+
+    raise RuntimeError("Could not locate Envato Elements Download button on page.")
+
+
 def check_cancellation(job_id: str):
     """Raises RuntimeError('Cancelled by user') if job was cancelled via dashboard."""
     try:
@@ -498,11 +525,18 @@ def check_cancellation(job_id: str):
 def execute_os_job(job: Dict[str, Any]):
     """Executes a single download job using UIAutomation and Hardware Mouse events."""
     job_id = job["job_id"]
-    target_url = normalize_artlist_url(job["url"])
+    raw_url = job["url"]
+    provider = job.get("provider") or ("envato" if "envato.com" in raw_url else "artlist")
+    
+    if provider == "artlist":
+        target_url = normalize_artlist_url(raw_url)
+    else:
+        target_url = raw_url
+
     variant = (job.get("variant") or "main").lower()
 
     print(f"\n=======================================================")
-    print(f"[OS Agent] Starting Job: {job_id}")
+    print(f"[OS Agent] Starting Job: {job_id} ({provider.upper()})")
     print(f" • Target URL : {target_url}")
     print(f" • Variant    : {variant}")
     print(f"=======================================================")
@@ -522,25 +556,47 @@ def execute_os_job(job: Dict[str, Any]):
     focus_chrome_safely(chrome_win)
     check_cancellation(job_id)
 
-    # 3. Auth Assertion
-    if not assert_auth_state(chrome_win):
+    # 3. Auth Assertion (Artlist)
+    if provider == "artlist" and not assert_auth_state(chrome_win):
         with get_db(write=True) as conn:
             set_health(conn, "session_authenticated", "false")
         raise PermissionError("Artlist Session Logged Out. Cannot proceed.")
 
     # 4. Extract Track Title from DOM via UIA
-    update_job_phase(job_id, "reading_title", "Reading track details...")
+    update_job_phase(job_id, "reading_title", "Reading asset details...")
     title = extract_track_title(chrome_win)
     if title:
         job["extracted_title"] = title
-    print(f"[OS Agent] Extracted Track Title: '{job.get('extracted_title', 'Unknown')}'")
+    print(f"[OS Agent] Extracted Title: '{job.get('extracted_title', 'Unknown')}'")
 
     # Take staging snapshot baseline BEFORE triggering download
     pre_snapshot = snapshot_directory(settings.STAGING_PATH)
     check_cancellation(job_id)
 
-    if variant == "stems":
-        # ---------------- STEMS WORKFLOW ----------------
+    if provider == "envato":
+        # ---------------- ENVATO ELEMENTS WORKFLOW ----------------
+        update_job_phase(job_id, "locating_download", "Locating Envato Download button...")
+        print("[OS Agent] Locating Envato Elements download button...")
+        env_x, env_y = locate_envato_download_target(chrome_win)
+        
+        update_job_phase(job_id, "selecting_variant", "Triggering Envato download...")
+        print(f"[OS Agent] Clicking Envato download at ({env_x}, {env_y})...")
+        human_move_and_click(env_x, env_y)
+        
+        time.sleep(1.2)
+        # Check if project modal / "Add & Download" popped up
+        add_dl_rect = find_uia_element(
+            chrome_win,
+            title_re=r"(?i).*(Add\s*&\s*Download|Download\s*without\s*license|Create\s*new\s*project|Add\s*to\s*project).*",
+            min_x=0,
+            timeout=3.5
+        )
+        if add_dl_rect:
+            print(f"[OS Agent] Confirming Envato project download at {add_dl_rect}...")
+            human_move_and_click(add_dl_rect.mid_point().x, add_dl_rect.mid_point().y)
+
+    elif variant == "stems":
+        # ---------------- ARTLIST STEMS WORKFLOW ----------------
         update_job_phase(job_id, "locating_download", "Locating Stems button...")
         print("[OS Agent] Locating Stems trigger via Play anchor / Document UIA...")
         stems_x, stems_y = locate_stems_trigger_target(chrome_win)

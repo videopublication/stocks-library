@@ -78,9 +78,10 @@
       <div class="panel-head"><h2>Queue Asset</h2></div>
       <form id="submit-form" novalidate>
         <label class="label" for="track-url">Stock Asset URL</label>
-        <div class="field">
+        <div class="field url-input-wrap">
           <input type="url" id="track-url"
                  placeholder="artlist.io/... or elements.envato.com/..." required>
+          <span id="url-detected-badge" class="url-detected-badge hidden"></span>
         </div>
 
         <div class="field-row">
@@ -200,20 +201,34 @@
 
     <section class="panel">
       <div class="panel-head">
-        <h2>Library</h2>
-        <span class="hint" id="library-count">0 tracks</span>
+        <h2>Sangraha (Library)</h2>
+        <span class="hint" id="library-count">0 assets</span>
       </div>
+
+      <!-- Category Filter Pills -->
+      <div class="category-filter-bar" id="category-filter-bar">
+        <button type="button" class="cat-pill active" data-cat="all">All Media</button>
+        <button type="button" class="cat-pill" data-cat="music">🎵 Music</button>
+        <button type="button" class="cat-pill" data-cat="sfx">🔊 Sound Effects</button>
+        <button type="button" class="cat-pill" data-cat="video-template">🎬 Video Templates</button>
+        <button type="button" class="cat-pill" data-cat="stock-video">🎥 Stock Video</button>
+        <button type="button" class="cat-pill" data-cat="graphic-template">🎨 Graphics & 3D</button>
+      </div>
+
       <div class="table-wrap">
         <table class="library">
           <thead>
             <tr>
-              <th>Track</th><th>Version</th><th>Size</th>
-              <th class="num" title="Times this track was served from the library instead of downloading again">Reused</th>
-              <th></th>
+              <th style="width:40px;"></th>
+              <th>Asset</th>
+              <th>Source / Category</th>
+              <th>Size</th>
+              <th class="num" title="Times this asset was served from the library without downloading again">Reused</th>
+              <th style="text-align:right;">Actions</th>
             </tr>
           </thead>
           <tbody id="library-tbody">
-            <tr><td colspan="5" class="empty-table">Loading…</td></tr>
+            <tr><td colspan="6" class="empty-table">Loading…</td></tr>
           </tbody>
         </table>
       </div>
@@ -221,6 +236,28 @@
 
   </section>
 </main>
+
+<!-- Persistent Bottom Audio Player Bar -->
+<div id="audio-player-bar" class="player-bar hidden">
+  <div class="player-controls">
+    <button type="button" id="player-play-btn" class="player-play-btn" aria-label="Play or Pause">
+      <svg id="player-play-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+    </button>
+  </div>
+  <div class="player-info">
+    <div id="player-title" class="player-title">Track Name</div>
+    <div id="player-sub" class="player-sub">Preview Stream</div>
+  </div>
+  <div class="player-progress-wrap">
+    <span id="player-current-time" class="player-time">0:00</span>
+    <input type="range" id="player-scrubber" class="player-scrubber" value="0" min="0" max="100" step="0.1">
+    <span id="player-duration" class="player-time">0:00</span>
+  </div>
+  <button type="button" id="player-close-btn" class="btn-icon" title="Close player">✕</button>
+</div>
+
+<!-- Toast Container -->
+<div id="toast-box" class="toast-box"></div>
 
 <script src="/static/app.js"></script>
 </body>

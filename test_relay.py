@@ -413,6 +413,61 @@ class TestTimestampHandling(unittest.TestCase):
         with get_db(write=True) as conn:
             set_health(conn, "cooldown_until", "2026-08-19T12:47:15.168Z")
 
-        view = get_queue_view()  # previously raised TypeError
+        view = get_queue_view()
         self.assertIn("cooldown_remaining_seconds", view)
         self.assertIsInstance(view["cooldown_remaining_seconds"], int)
+
+
+class TestMultiStockProviders(TestArtlistRelay):
+    """Tests for Artlist and Envato Elements provider parsing, routing, and filtering."""
+
+    def test_envato_provider_parsing(self):
+        from backend.providers import get_provider_for_url, parse_stock_url
+
+        cases = [
+            ("https://elements.envato.com/video-templates/cinematic-title-sequence-9ABC123", "video-template", "9ABC123", "envato"),
+            ("https://elements.envato.com/stock-video/aerial-mountains-sunset-XYZ987", "stock-video", "XYZ987", "envato"),
+            ("https://elements.envato.com/audio/stock-music/epic-cinematic-trailer-MUSIC1", "music", "MUSIC1", "envato"),
+            ("https://elements.envato.com/audio/sound-effects/cinematic-whoosh-SFX456", "sfx", "SFX456", "envato"),
+            ("https://elements.envato.com/graphic-templates/corporate-brand-identity-GRP789", "graphic-template", "GRP789", "envato"),
+        ]
+
+        for url, expected_cat, expected_id, expected_prov in cases:
+            with self.subTest(url=url):
+                res = parse_stock_url(url)
+                self.assertEqual(res["provider"], expected_prov)
+                self.assertEqual(res["category"], expected_cat)
+                self.assertEqual(res["track_id"], expected_id)
+
+    def test_envato_job_submission_and_category_search(self):
+        envato_url = "https://elements.envato.com/video-templates/retro-glitch-intro-789XYZ"
+        job = submit_new_job(url=envato_url, variant="main", format_type="ZIP")
+        self.assertEqual(job["provider"], "envato")
+        self.assertEqual(job["category"], "video-template")
+
+        claimed = claim_next_job_for_worker()
+        self.assertIsNotNone(claimed)
+
+        # Stage mock zip file with size >= MIN_AUDIO_BYTES
+        zip_path = settings.STAGING_PATH / "retro_glitch_intro.zip"
+        import zipfile
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            zf.writestr("project.prproj", b"0" * (60 * 1024))
+
+        complete_worker_job(job["job_id"], "retro_glitch_intro.zip", zip_path.stat().st_size, "Retro Glitch Intro")
+
+        # Search with category filter
+        templates = search_library(category="video-template")
+        self.assertEqual(len(templates), 1)
+        self.assertEqual(templates[0]["provider"], "envato")
+        self.assertEqual(templates[0]["category"], "video-template")
+        self.assertTrue(templates[0]["is_archive"])
+
+        # Search for music should return 0
+        music = search_library(category="music")
+        self.assertEqual(len(music), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()
+

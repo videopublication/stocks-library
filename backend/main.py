@@ -150,9 +150,9 @@ async def get_job_detail(job_id: str):
 
 
 @app.get("/api/v1/library", dependencies=[Depends(require_token)])
-async def get_library_tracks(q: str = ""):
-    """Search and browse all tracks in the library."""
-    return await asyncio.to_thread(search_library, q)
+async def get_library_tracks(q: str = "", category: str = "all"):
+    """Search and browse all tracks in the library with category filtering."""
+    return await asyncio.to_thread(search_library, q, category)
 
 
 @app.get("/api/v1/library/file", dependencies=[Depends(require_token)])
@@ -183,6 +183,65 @@ async def download_library_file(track_id: str, variant: str = "main"):
         raise HTTPException(status_code=410, detail="File is indexed but missing from disk")
 
     return FileResponse(path, filename=row["filename"], media_type="application/octet-stream")
+
+
+@app.get("/api/v1/library/stream/{track_id}", dependencies=[Depends(require_token)])
+async def stream_library_audio(track_id: str, variant: str = "main"):
+    """Streams audio files (WAV, MP3, M4A, FLAC) directly to browser audio player."""
+    with get_db(write=False) as conn:
+        row = conn.execute(
+            "SELECT filename, library_path FROM tracks WHERE track_id = ? AND variant = ?",
+            (track_id, variant),
+        ).fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Asset not in library")
+
+    path = Path(row["library_path"])
+    try:
+        path.resolve().relative_to(settings.LIBRARY_PATH.resolve())
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Path outside the library")
+
+    if not path.exists():
+        raise HTTPException(status_code=410, detail="Audio file missing from disk")
+
+    suffix = path.suffix.lower()
+    media_type = "audio/wav"
+    if suffix == ".mp3":
+        media_type = "audio/mpeg"
+    elif suffix in (".m4a", ".mp4"):
+        media_type = "audio/mp4"
+    elif suffix == ".flac":
+        media_type = "audio/flac"
+    elif suffix == ".ogg":
+        media_type = "audio/ogg"
+
+    return FileResponse(path, media_type=media_type)
+
+
+@app.post("/api/v1/library/{track_id}/reveal", dependencies=[Depends(require_token)])
+async def reveal_library_file(track_id: str, variant: str = "main"):
+    """Opens Windows File Explorer and highlights the file for NLE import."""
+    import subprocess
+    with get_db(write=False) as conn:
+        row = conn.execute(
+            "SELECT filename, library_path FROM tracks WHERE track_id = ? AND variant = ?",
+            (track_id, variant),
+        ).fetchone()
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Asset not in library")
+
+    path = Path(row["library_path"])
+    if not path.exists():
+        raise HTTPException(status_code=410, detail="File missing from disk")
+
+    try:
+        subprocess.Popen(f'explorer.exe /select,"{path.resolve()}"')
+        return {"status": "opened", "path": str(path.resolve())}
+    except Exception as e:
+        return {"status": "fallback", "path": str(path.resolve()), "error": str(e)}
 
 
 @app.get("/api/v1/status", dependencies=[Depends(require_token)])

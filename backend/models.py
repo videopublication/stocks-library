@@ -2,8 +2,8 @@ from typing import Optional, List, Union
 from pydantic import BaseModel, Field
 
 class JobCreateRequest(BaseModel):
-    url: str = Field(..., description="Artlist track/song/sfx URL")
-    variant: str = Field(default="main", description="Track variant: main, instrumental, stems, short")
+    url: str = Field(..., description="Stock asset URL (Artlist or Envato Elements)")
+    variant: str = Field(default="main", description="Track/Asset variant: main, stems, etc.")
     format: str = Field(default="WAV", description="Audio format: WAV or MP3")
     requested_by: Optional[str] = Field(default="local_editor", description="User identity")
 

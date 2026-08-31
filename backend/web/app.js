@@ -1,9 +1,10 @@
-// Artlist Relay Frontend Application
+// Setu (सेतु) Creative Asset Bridge & Sangraha UI
 document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("library-search-input");
   const clearSearchBtn = document.getElementById("clear-search-btn");
   const submitForm = document.getElementById("submit-form");
   const trackUrlInput = document.getElementById("track-url");
+  const urlDetectedBadge = document.getElementById("url-detected-badge");
   const trackVariantSelect = document.getElementById("track-variant");
   const audioFormatSelect = document.getElementById("audio-format");
   const submitBtn = document.getElementById("submit-btn");
@@ -24,6 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const inFlightPhase = document.getElementById("in-flight-phase");
   const inFlightElapsed = document.getElementById("in-flight-elapsed");
   const inFlightTimeout = document.getElementById("in-flight-timeout");
+  const cancelInflightBtn = document.getElementById("cancel-inflight-btn");
   const phaseTrack = document.getElementById("phase-track");
   const dlProgress = document.getElementById("dl-progress");
   const dlBar = document.getElementById("dl-bar");
@@ -43,15 +45,29 @@ document.addEventListener("DOMContentLoaded", () => {
   const libraryTotal = document.getElementById("library-total");
   const libraryTbody = document.getElementById("library-tbody");
   const libraryCount = document.getElementById("library-count");
+  const categoryFilterBar = document.getElementById("category-filter-bar");
+  const toastBox = document.getElementById("toast-box");
 
-  // Local clock state. The server is polled every 2s, but these tick every
-  // second in between so countdowns move smoothly instead of jumping.
+  // Audio Player Elements
+  const audioPlayerBar = document.getElementById("audio-player-bar");
+  const playerPlayBtn = document.getElementById("player-play-btn");
+  const playerPlayIcon = document.getElementById("player-play-icon");
+  const playerTitle = document.getElementById("player-title");
+  const playerSub = document.getElementById("player-sub");
+  const playerCurrentTime = document.getElementById("player-current-time");
+  const playerScrubber = document.getElementById("player-scrubber");
+  const playerDuration = document.getElementById("player-duration");
+  const playerCloseBtn = document.getElementById("player-close-btn");
+
+  let currentAudio = new Audio();
+  let currentPlayingTrackId = null;
+  let currentPlayingVariant = null;
+  let currentCategory = "all";
+  let currentInFlightId = null;
+
   let clock = { elapsed: null, timeout: null, cooldown: 0, etas: new Map() };
-
   let searchTimeout = null;
 
-  // The token is injected server-side into the page head; it is never typed in
-  // by hand and never leaves this origin.
   const TOKEN = window.RELAY_TOKEN || "";
 
   function authHeaders(extra) {
@@ -71,17 +87,16 @@ document.addEventListener("DOMContentLoaded", () => {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  // Older rows recorded the whole SEO page title. Show the track, not the page.
   function shortTitle(raw) {
     let t = (raw || "").trim();
     t = t.replace(/\s*-\s*Royalty Free Music\s*\|\s*Artlist\s*$/i, "");
     t = t.replace(/\s*\|\s*Artlist\s*$/i, "");
+    t = t.replace(/\s*\|\s*Envato Elements\s*$/i, "");
     const by = t.toLowerCase().lastIndexOf(" by ");
     if (by > 0) t = t.slice(0, by);
     return t.trim();
   }
 
-  // Split a failure into the part a person acts on and the DOM dump behind it.
   function splitError(err) {
     const text = (err || "").trim();
     const markers = ["Icon controls on page:", "PAGE STATE:", "CONTROLS:", "Rows present:"];
@@ -98,35 +113,213 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!iso) return "";
     const then = new Date(iso).getTime();
     if (Number.isNaN(then)) return "";
-    const mins = Math.floor((Date.now() - then) / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
+    const diff = Math.floor((Date.now() - then) / 1000);
+    if (diff < 45) return "just now";
+    if (diff < 90) return "1 min ago";
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 7200) return "1 hour ago";
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
+    const days = Math.floor(diff / 86400);
+    return days === 1 ? "yesterday" : `${days} days ago`;
   }
 
-  // Stems arrive as a multi-file ZIP bundle; everything else is a single audio
-  // file. Worth distinguishing at a glance - they differ by ~10x in size.
   function fileKind(filename) {
     const ext = (filename || "").split(".").pop().toLowerCase();
-    if (ext === "zip") return { label: "ZIP bundle", cls: "kind-zip" };
-    if (ext === "wav") return { label: "WAV", cls: "kind-wav" };
-    return { label: ext.toUpperCase() || "file", cls: "kind-other" };
+    if (ext === "zip") return { label: "ZIP Archive", cls: "kind-zip" };
+    if (ext === "wav" || ext === "wave") return { label: "Lossless WAV", cls: "kind-wav" };
+    if (ext === "mp3") return { label: "MP3 Audio", cls: "kind-mp3" };
+    if (ext === "mov" || ext === "mp4") return { label: "Video Template", cls: "kind-zip" };
+    return { label: ext.toUpperCase() || "FILE", cls: "kind-other" };
   }
 
-  // Fetch through apiFetch so the bearer token travels; a plain <a href> cannot
-  // carry an Authorization header.
+  function showToast(msg) {
+    if (!toastBox) return;
+    const toast = document.createElement("div");
+    toast.className = "toast";
+    toast.innerHTML = `
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2">
+        <path d="M20 6L9 17l-5-5"/>
+      </svg>
+      <span>${msg}</span>
+    `;
+    toastBox.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.style.transform = "translateY(-6px)";
+      toast.style.transition = "all 0.2s ease";
+      setTimeout(() => toast.remove(), 200);
+    }, 2400);
+  }
+
+  // --- Dynamic URL Provider Detector ---------------------------------------
+  function detectProvider(url) {
+    if (!url) return null;
+    const u = url.toLowerCase();
+    if (u.includes("artlist.io")) {
+      if (u.includes("/sfx/") || u.includes("sound-effects")) {
+        return { name: "Artlist", type: "sfx", badge: "🎵 Artlist • SFX", cls: "artlist" };
+      }
+      return { name: "Artlist", type: "music", badge: "🎵 Artlist • Music", cls: "artlist" };
+    }
+    if (u.includes("envato.com")) {
+      if (u.includes("video-template")) {
+        return { name: "Envato", type: "video-template", badge: "🎬 Envato • Video Template", cls: "envato" };
+      } else if (u.includes("stock-video")) {
+        return { name: "Envato", type: "stock-video", badge: "🎥 Envato • Stock Video", cls: "envato" };
+      } else if (u.includes("graphic-template")) {
+        return { name: "Envato", type: "graphic-template", badge: "🎨 Envato • Graphics", cls: "envato" };
+      } else if (u.includes("sound-effect") || u.includes("/sfx")) {
+        return { name: "Envato", type: "sfx", badge: "🔊 Envato • SFX", cls: "envato" };
+      } else if (u.includes("music") || u.includes("audio")) {
+        return { name: "Envato", type: "music", badge: "🎵 Envato • Music", cls: "envato" };
+      }
+      return { name: "Envato", type: "template", badge: "📦 Envato Elements", cls: "envato" };
+    }
+    return null;
+  }
+
+  function updateUrlBadge() {
+    const val = trackUrlInput.value.trim();
+    const info = detectProvider(val);
+    if (info) {
+      urlDetectedBadge.textContent = info.badge;
+      urlDetectedBadge.className = `url-detected-badge badge-tag ${info.cls}`;
+      urlDetectedBadge.classList.remove("hidden");
+    } else {
+      urlDetectedBadge.classList.add("hidden");
+    }
+  }
+
+  trackUrlInput.addEventListener("input", updateUrlBadge);
+  trackUrlInput.addEventListener("paste", () => setTimeout(updateUrlBadge, 50));
+
+  // --- Audio Player Controller ----------------------------------------------
+  function formatPlayerTime(seconds) {
+    if (isNaN(seconds) || seconds < 0) return "0:00";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function updatePlayerPlayIcon(isPlaying) {
+    if (isPlaying) {
+      playerPlayIcon.innerHTML = `<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>`;
+    } else {
+      playerPlayIcon.innerHTML = `<polygon points="5 3 19 12 5 21 5 3"></polygon>`;
+    }
+    // Update any active row icon
+    document.querySelectorAll(".btn-play").forEach(btn => {
+      const isThis = btn.dataset.trackId === currentPlayingTrackId;
+      btn.classList.toggle("is-playing", isThis && isPlaying);
+      if (isThis && isPlaying) {
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
+      } else {
+        btn.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+      }
+    });
+  }
+
+  function playAudioTrack(track) {
+    if (currentPlayingTrackId === track.track_id && currentPlayingVariant === (track.variant || "main")) {
+      if (currentAudio.paused) {
+        currentAudio.play();
+        updatePlayerPlayIcon(true);
+      } else {
+        currentAudio.pause();
+        updatePlayerPlayIcon(false);
+      }
+      return;
+    }
+
+    currentPlayingTrackId = track.track_id;
+    currentPlayingVariant = track.variant || "main";
+    currentAudio.src = `/api/v1/library/stream/${encodeURIComponent(track.track_id)}?variant=${encodeURIComponent(currentPlayingVariant)}`;
+    
+    playerTitle.textContent = shortTitle(track.title) || track.filename;
+    playerSub.textContent = `${(track.provider || "Artlist").toUpperCase()} • ${(track.variant || "Main").toUpperCase()}`;
+    audioPlayerBar.classList.remove("hidden");
+
+    currentAudio.play().then(() => {
+      updatePlayerPlayIcon(true);
+    }).catch(err => {
+      console.error("Playback error:", err);
+      showToast("Audio stream unavailable");
+    });
+  }
+
+  playerPlayBtn.addEventListener("click", () => {
+    if (currentAudio.src) {
+      if (currentAudio.paused) {
+        currentAudio.play();
+        updatePlayerPlayIcon(true);
+      } else {
+        currentAudio.pause();
+        updatePlayerPlayIcon(false);
+      }
+    }
+  });
+
+  playerCloseBtn.addEventListener("click", () => {
+    currentAudio.pause();
+    currentAudio.src = "";
+    currentPlayingTrackId = null;
+    currentPlayingVariant = null;
+    updatePlayerPlayIcon(false);
+    audioPlayerBar.classList.add("hidden");
+  });
+
+  currentAudio.addEventListener("timeupdate", () => {
+    if (!isNaN(currentAudio.duration)) {
+      const pct = (currentAudio.currentTime / currentAudio.duration) * 100;
+      playerScrubber.value = pct || 0;
+      playerCurrentTime.textContent = formatPlayerTime(currentAudio.currentTime);
+      playerDuration.textContent = formatPlayerTime(currentAudio.duration);
+    }
+  });
+
+  currentAudio.addEventListener("ended", () => {
+    updatePlayerPlayIcon(false);
+    playerScrubber.value = 0;
+    playerCurrentTime.textContent = "0:00";
+  });
+
+  playerScrubber.addEventListener("input", (e) => {
+    if (!isNaN(currentAudio.duration)) {
+      const seekTo = (e.target.value / 100) * currentAudio.duration;
+      currentAudio.currentTime = seekTo;
+    }
+  });
+
+  // --- File Actions: Copy, Reveal, Download ---------------------------------
+  function copyPath(path) {
+    navigator.clipboard
+      .writeText(path)
+      .then(() => {
+        showToast("Local path copied to clipboard!");
+      })
+      .catch((err) => console.error("Could not copy: ", err));
+  }
+
+  async function revealFile(track) {
+    try {
+      showToast("Opening in File Explorer...");
+      await apiFetch(`/api/v1/library/${encodeURIComponent(track.track_id)}/reveal?variant=${encodeURIComponent(track.variant || 'main')}`, {
+        method: "POST"
+      });
+    } catch (err) {
+      console.error("Reveal error:", err);
+    }
+  }
+
   async function downloadFile(track, btn) {
     const original = btn.textContent;
     btn.disabled = true;
-    btn.textContent = "Preparing…";
+    btn.textContent = "Downloading…";
     try {
       const res = await apiFetch(
-        `/api/v1/library/file?track_id=${encodeURIComponent(track.track_id)}` +
-        `&variant=${encodeURIComponent(track.variant)}`
+        `/api/v1/library/file?track_id=${encodeURIComponent(track.track_id)}&variant=${encodeURIComponent(track.variant || 'main')}`
       );
-      if (!res.ok) throw new Error(String(res.status));
+      if (!res.ok) throw new Error("Download failed");
 
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -145,17 +338,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function copyPath(path) {
-    navigator.clipboard
-      .writeText(path)
-      .then(() => {
-        showResult("success", "Path copied", path);
-      })
-      .catch((err) => console.error("Could not copy: ", err));
-  }
-
-  // Build result banners as DOM nodes. Track titles and filenames come from
-  // Artlist page content, so they are never interpolated into innerHTML.
   function showResult(kind, heading, detail, pathToCopy) {
     submitResult.className = `result-banner ${kind}`;
     submitResult.textContent = "";
@@ -189,7 +371,6 @@ document.addEventListener("DOMContentLoaded", () => {
     return m + ":" + String(sec).padStart(2, "0");
   }
 
-  // Paint the phase stepper: filled for completed steps, pulsing on the current one.
   function renderPhaseTrack(phaseIndex, phaseTotal, failed) {
     if (phaseTrack.childElementCount !== phaseTotal) {
       phaseTrack.textContent = "";
@@ -199,37 +380,13 @@ document.addEventListener("DOMContentLoaded", () => {
         phaseTrack.appendChild(seg);
       }
     }
-    Array.from(phaseTrack.children).forEach((seg, i) => {
-      let cls = "phase-seg";
-      if (failed) {
-        if (i <= phaseIndex) cls += " failed";
-      } else if (i < phaseIndex) {
-        cls += " filled";
-      } else if (i === phaseIndex) {
-        cls += " active";
-      }
-      seg.className = cls;
-    });
-  }
-
-  const cancelInFlightBtn = document.getElementById("cancel-inflight-btn");
-  let currentInFlightId = null;
-
-  if (cancelInFlightBtn) {
-    cancelInFlightBtn.addEventListener("click", async () => {
-      if (!currentInFlightId) return;
-      cancelInFlightBtn.disabled = true;
-      cancelInFlightBtn.textContent = "Cancelling...";
-      try {
-        await apiFetch(`/api/v1/jobs/${currentInFlightId}/cancel`, { method: "POST" });
-        await fetchQueue();
-      } catch (err) {
-        console.error("Cancel failed:", err);
-      } finally {
-        cancelInFlightBtn.disabled = false;
-        cancelInFlightBtn.textContent = "Cancel";
-      }
-    });
+    const children = phaseTrack.children;
+    for (let i = 0; i < children.length; i++) {
+      const seg = children[i];
+      seg.className = "phase-seg";
+      if (i < phaseIndex) seg.classList.add("done");
+      else if (i === phaseIndex) seg.classList.add(failed ? "failed" : "active");
+    }
   }
 
   function renderInFlight(job) {
@@ -243,211 +400,145 @@ document.addEventListener("DOMContentLoaded", () => {
 
     currentInFlightId = job.job_id || job.id;
     inFlightContainer.classList.remove("hidden");
-    inFlightTitle.textContent = job.title || job.phase_detail || ("Track " + job.track_id);
+    inFlightTitle.textContent = shortTitle(job.extracted_title || job.title) || job.track_id;
     inFlightVariant.textContent = job.variant;
-    inFlightPhase.textContent = job.phase_label;
+    inFlightPhase.textContent = job.phase_label || job.phase;
 
     clock.elapsed = job.elapsed_seconds || 0;
     clock.timeout = job.timeout_seconds || 180;
+    inFlightElapsed.textContent = fmtClock(clock.elapsed);
     inFlightTimeout.textContent = fmtClock(clock.timeout);
 
-    renderPhaseTrack(job.phase_index, job.phase_total, job.phase === "failed");
+    renderPhaseTrack(job.phase_index || 0, job.phase_total || 11, job.phase === "failed");
 
-    if (job.phase === "downloading" && job.total_bytes > 0) {
+    if (job.phase === "downloading" && job.progress_bytes > 0) {
       dlProgress.classList.remove("hidden");
-      const pct = Math.min(100, Math.round((job.progress_bytes / job.total_bytes) * 100));
-      dlBar.style.width = pct + "%";
-      dlPct.textContent = pct + "%";
-      dlText.textContent = formatBytes(job.progress_bytes) + " / " + formatBytes(job.total_bytes);
-    } else if (job.phase === "downloading") {
-      dlProgress.classList.remove("hidden");
-      dlBar.style.width = "100%";
-      dlPct.textContent = "";
-      dlText.textContent = formatBytes(job.progress_bytes) + " received";
+      const pct = job.total_bytes > 0 ? Math.round((job.progress_bytes / job.total_bytes) * 100) : 0;
+      dlBar.style.width = pct > 0 ? `${pct}%` : "100%";
+      dlPct.textContent = pct > 0 ? `${pct}%` : "";
+      dlText.textContent = `${formatBytes(job.progress_bytes)} of ${formatBytes(job.total_bytes)}`;
     } else {
       dlProgress.classList.add("hidden");
     }
   }
 
-  function renderQueued(jobs) {
-    clock.etas = new Map();
-    queueList.textContent = "";
+  cancelInflightBtn.addEventListener("click", async () => {
+    if (!currentInFlightId) return;
+    cancelInflightBtn.disabled = true;
+    cancelInflightBtn.textContent = "Cancelling…";
+    try {
+      await apiFetch(`/api/v1/jobs/${encodeURIComponent(currentInFlightId)}/cancel`, { method: "POST" });
+      showToast("Job cancelled");
+      await fetchQueue();
+      await fetchStatus();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      cancelInflightBtn.disabled = false;
+      cancelInflightBtn.textContent = "Cancel";
+    }
+  });
 
-    if (!jobs.length) {
-      const empty = document.createElement("div");
-      empty.className = "empty";
-      empty.textContent = "No jobs currently in queue";
-      queueList.appendChild(empty);
+  function renderQueued(jobs) {
+    if (!jobs || jobs.length === 0) {
+      queueList.innerHTML = '<div class="empty">Nothing queued</div>';
+      clock.etas.clear();
       return;
     }
 
+    queueList.textContent = "";
     for (const job of jobs) {
+      const id = job.job_id || job.id;
+      clock.etas.set(id, job.estimated_wait_seconds || 0);
+
       const row = document.createElement("div");
       row.className = "queue-row";
 
       const pos = document.createElement("div");
-      pos.className = "queue-pos";
+      pos.className = "queue-pos mono";
       pos.textContent = job.queue_position;
 
-      const main = document.createElement("div");
-      main.className = "queue-main";
+      const body = document.createElement("div");
+      body.className = "queue-body";
       const title = document.createElement("div");
-      title.className = "qtitle";
-      title.textContent = job.title || ("Track " + job.track_id);
+      title.className = "queue-title";
+      title.textContent = shortTitle(job.extracted_title || job.title) || job.track_id;
       const sub = document.createElement("div");
-      sub.className = "qsub";
-      sub.textContent = job.attempts > 0
-        ? job.variant + " \u00b7 retry " + job.attempts
-        : job.variant;
-      main.append(title, sub);
+      sub.className = "queue-sub";
+      sub.textContent = `${job.variant} · ${job.format} · requested by ${job.requested_by}`;
+      body.append(title, sub);
 
-      const rightBox = document.createElement("div");
-      rightBox.style.display = "flex";
-      rightBox.style.alignItems = "center";
-      rightBox.style.gap = "8px";
-
-      const existingEta = clock.etas.get(job.job_id);
-      const targetEta = (existingEta != null && existingEta > 0 && Math.abs(existingEta - (job.eta_seconds || 0)) < 15)
-        ? existingEta
-        : (job.eta_seconds || 0);
-
-      const eta = document.createElement("div");
-      eta.className = "queue-eta";
-      eta.dataset.jobId = job.job_id;
-      eta.textContent = "~" + fmtClock(targetEta);
-      clock.etas.set(job.job_id, targetEta);
+      const meta = document.createElement("div");
+      meta.className = "queue-meta";
+      const eta = document.createElement("span");
+      eta.className = "queue-eta mono";
+      eta.dataset.jobId = id;
+      eta.textContent = `~${fmtClock(job.estimated_wait_seconds || 0)}`;
 
       const cancelBtn = document.createElement("button");
       cancelBtn.type = "button";
-      cancelBtn.className = "btn-quiet";
-      cancelBtn.style.padding = "2px 6px";
-      cancelBtn.style.fontSize = "11px";
-      cancelBtn.style.color = "#888";
-      cancelBtn.title = "Cancel this queued job";
-      cancelBtn.textContent = "\u2715";
+      cancelBtn.className = "btn-icon";
+      cancelBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+      cancelBtn.title = "Cancel";
       cancelBtn.addEventListener("click", async () => {
         cancelBtn.disabled = true;
         try {
-          await apiFetch(`/api/v1/jobs/${job.id || job.job_id}/cancel`, { method: "POST" });
+          await apiFetch(`/api/v1/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" });
+          showToast("Job cancelled");
           await fetchQueue();
         } catch (e) {
-          console.error("Cancel failed:", e);
+          console.error(e);
         }
       });
 
-      rightBox.append(eta, cancelBtn);
-      row.append(pos, main, rightBox);
+      meta.append(eta, cancelBtn);
+      row.append(pos, body, meta);
       queueList.appendChild(row);
     }
   }
 
   function renderRecent(jobs) {
-    if (!jobs.length) {
+    if (!jobs || jobs.length === 0) {
       recentSection.classList.add("hidden");
+      recentList.textContent = "";
       return;
     }
+
     recentSection.classList.remove("hidden");
     recentList.textContent = "";
 
     for (const job of jobs) {
       const ok = job.status === "done";
-      // A track without stems is information, not a fault - it should not read
-      // like something broke.
-      const info = !ok && job.no_stems;
+      const isInfo = !ok && job.error && /no stems/i.test(job.error);
 
       const row = document.createElement("div");
-      row.className = "recent-row " + (ok ? "is-ok" : info ? "is-info" : "is-bad");
+      row.className = `recent-row ${ok ? "is-done" : isInfo ? "is-info" : "is-failed"}`;
 
-      const icon = document.createElement("span");
+      const icon = document.createElement("div");
       icon.className = "recent-icon";
-      icon.textContent = ok ? "\u2713" : info ? "i" : "\u2717";
+      icon.textContent = ok ? "✓" : isInfo ? "ℹ" : "✕";
 
       const body = document.createElement("div");
       body.className = "recent-body";
 
-      const head = document.createElement("div");
-      head.className = "recent-head-row";
+      const title = document.createElement("div");
+      title.className = "recent-title";
+      title.textContent = shortTitle(job.title || job.filename) || job.track_id;
 
-      const name = shortTitle(job.title) || "Track " + job.track_id;
-      const t = job.url ? document.createElement("a") : document.createElement("span");
-      t.className = "rtitle";
-      t.textContent = name;
-      if (job.url) {
-        t.href = job.url;
-        t.target = "_blank";
-        t.rel = "noreferrer";
-      }
+      const sub = document.createElement("div");
+      sub.className = "recent-sub";
+      const bits = [job.variant];
+      if (job.bytes) bits.push(formatBytes(job.bytes));
+      if (job.completed_at) bits.push(relativeTime(job.completed_at));
+      sub.textContent = bits.join(" · ");
+      body.append(title, sub);
 
-      const chip = document.createElement("span");
-      chip.className = "chip chip-sm";
-      chip.textContent = job.variant;
-
-      const when = document.createElement("span");
-      when.className = "recent-when";
-      when.textContent = relativeTime(job.completed_at || job.created_at);
-
-      head.append(t, chip, when);
-      body.appendChild(head);
-
-      if (info) {
-        const note = document.createElement("div");
-        note.className = "rerr";
-        note.textContent = job.error;
-        body.appendChild(note);
-
-        // One click to fetch the version that does exist.
-        if (job.url) {
-          const again = document.createElement("button");
-          again.type = "button";
-          again.className = "rerr-toggle";
-          again.textContent = "Download main track instead";
-          again.addEventListener("click", async () => {
-            again.disabled = true;
-            again.textContent = "Queueing...";
-            try {
-              const res = await apiFetch("/api/v1/jobs", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ url: job.url, variant: "main", format: "WAV" }),
-              });
-              const data = await res.json();
-              if (res.status === 200 && data.status === "cached") {
-                showResult("cached", "Already in your library", data.filename, data.library_path);
-              } else if (res.status === 201) {
-                showResult("success", "Queued - position " + data.queue_position);
-              } else {
-                showResult("error", data.detail || "Could not queue that track");
-              }
-              fetchQueue();
-              fetchStatus();
-            } finally {
-              again.disabled = false;
-              again.textContent = "Download main track instead";
-            }
-          });
-          body.appendChild(again);
-        }
-      } else if (!ok && job.error) {
+      if (!ok && job.error) {
         const parts = splitError(job.error);
         const e = document.createElement("div");
         e.className = "rerr";
         e.textContent = parts.summary;
         body.appendChild(e);
-
-        if (parts.detail) {
-          const toggle = document.createElement("button");
-          toggle.type = "button";
-          toggle.className = "rerr-toggle";
-          toggle.textContent = "Technical detail";
-          let open = false;
-          toggle.addEventListener("click", () => {
-            open = !open;
-            e.textContent = open ? parts.detail : parts.summary;
-            e.classList.toggle("rerr-full", open);
-            toggle.textContent = open ? "Hide detail" : "Technical detail";
-          });
-          body.appendChild(toggle);
-        }
       }
 
       row.append(icon, body);
@@ -472,18 +563,13 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         cooldownBanner.classList.add("hidden");
       }
-    } catch (err) {
-      // Server unreachable; the status poll surfaces that separately.
-    }
+    } catch (err) {}
   }
 
-  // Smooth 1s tick between server polls.
   function tickClocks() {
     if (clock.elapsed != null) {
       clock.elapsed += 1;
       inFlightElapsed.textContent = fmtClock(clock.elapsed);
-      inFlightElapsed.style.color =
-        clock.timeout && clock.elapsed > clock.timeout - 30 ? "var(--accent-amber)" : "";
     }
 
     if (clock.cooldown > 0) {
@@ -496,7 +582,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const id = el.dataset.jobId;
       const remaining = Math.max(0, (clock.etas.get(id) || 0) - 1);
       clock.etas.set(id, remaining);
-      el.textContent = "~" + fmtClock(remaining);
+      el.textContent = `~${fmtClock(remaining)}`;
     }
   }
 
@@ -520,7 +606,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // 1. Fetch & Render Telemetry Status
+  // --- Fetch & Render Status ------------------------------------------------
   async function fetchStatus() {
     try {
       const res = await apiFetch("/api/v1/status");
@@ -530,27 +616,16 @@ document.addEventListener("DOMContentLoaded", () => {
       quotaText.textContent = data.daily_usage;
       const pct = Math.min(100, Math.round((data.daily_downloads / data.daily_limit) * 100));
       quotaBar.style.width = `${pct}%`;
-      if (pct >= 90) {
-        quotaBar.style.background = "var(--accent-red)";
-      } else if (pct >= 75) {
-        quotaBar.style.background = "var(--accent-amber)";
-      } else {
-        quotaBar.style.background = "linear-gradient(90deg, var(--primary), var(--accent-green))";
-      }
 
       if (data.chrome_download_dir && data.download_dir_ok === false) {
         dldirBanner.classList.remove("hidden");
-        dldirDetail.textContent =
-          "Chrome saves to " + data.chrome_download_dir +
-          " but the relay only accepts files from " + data.staging_path +
-          ". Downloads will succeed and then be rejected at the handoff.";
+        dldirDetail.textContent = `Chrome saves to ${data.chrome_download_dir} but Setu requires ${data.staging_path}.`;
       } else {
         dldirBanner.classList.add("hidden");
       }
 
       if (libraryTotal) {
-        libraryTotal.textContent =
-          `${data.library_count || 0} tracks · ${formatBytes(data.library_bytes || 0)}`;
+        libraryTotal.textContent = `${data.library_count || 0} assets · ${formatBytes(data.library_bytes || 0)}`;
       }
 
       cacheHitsVal.textContent = data.today_cache_hits;
@@ -559,31 +634,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (data.queue_paused) {
         serverStatus.className = "pill danger";
-        serverStatus.querySelector(".text").textContent =
-          `Paused after ${data.consecutive_failures} failures`;
+        serverStatus.querySelector(".text").textContent = `Paused (${data.consecutive_failures} fails)`;
         pausedBanner.classList.remove("hidden");
-        pausedReason.textContent =
-          data.consecutive_failures + " consecutive failures. Fix the cause, then resume.";
+        pausedReason.textContent = `${data.consecutive_failures} consecutive failures. Fix cause and resume.`;
       } else if (!data.storage_ok) {
         pausedBanner.classList.add("hidden");
         serverStatus.className = "pill danger";
         serverStatus.querySelector(".text").textContent = "Low disk space";
       } else {
         serverStatus.className = "pill online";
-        serverStatus.querySelector(".text").textContent = "Relay Active";
+        serverStatus.querySelector(".text").textContent = "Setu Bridge Active";
         pausedBanner.classList.add("hidden");
       }
 
       const workerLabel = data.worker_type === "os_agent" ? "OS Agent" : "Extension";
       if (data.heartbeat_stale) {
         sessionStatus.className = "pill warning";
-        sessionStatus.querySelector(".text").textContent = `${workerLabel}: No Heartbeat`;
+        sessionStatus.querySelector(".text").textContent = `${workerLabel}: Offline`;
       } else if (data.session_authenticated) {
         sessionStatus.className = "pill online";
-        sessionStatus.querySelector(".text").textContent = `${workerLabel}: Active`;
+        sessionStatus.querySelector(".text").textContent = `${workerLabel}: Ready`;
       } else {
         sessionStatus.className = "pill warning";
-        sessionStatus.querySelector(".text").textContent = "Artlist: Re-auth Required";
+        sessionStatus.querySelector(".text").textContent = "Auth Required";
       }
 
     } catch (err) {
@@ -592,23 +665,23 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 2. Fetch & Render Library
-  async function fetchLibrary(query = "") {
+  // --- Fetch & Render Library -----------------------------------------------
+  async function fetchLibrary(query = "", category = currentCategory) {
     try {
-      const res = await apiFetch(`/api/v1/library?q=${encodeURIComponent(query)}`);
+      const res = await apiFetch(`/api/v1/library?q=${encodeURIComponent(query)}&category=${encodeURIComponent(category)}`);
       const tracks = await res.json();
 
-      libraryCount.textContent = `${tracks.length} tracks`;
+      libraryCount.textContent = `${tracks.length} assets`;
       libraryTbody.textContent = "";
 
       if (tracks.length === 0) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 5;
+        td.colSpan = 6;
         td.className = "empty-table";
         td.textContent = query
-          ? "No matching tracks found."
-          : "No tracks in library yet. Add your first track above!";
+          ? "No matching assets found."
+          : "No assets in Sangraha library yet. Queue your first item above!";
         tr.appendChild(td);
         libraryTbody.appendChild(tr);
         return;
@@ -617,6 +690,29 @@ document.addEventListener("DOMContentLoaded", () => {
       for (const t of tracks) {
         const tr = document.createElement("tr");
 
+        // 1. Play button / Stream trigger (if audio streamable)
+        const playTd = document.createElement("td");
+        if (t.streamable) {
+          const playBtn = document.createElement("button");
+          playBtn.type = "button";
+          playBtn.className = "btn-icon btn-play";
+          playBtn.dataset.trackId = t.track_id;
+          playBtn.title = "Play / Preview Audio";
+          const isThisPlaying = currentPlayingTrackId === t.track_id && !currentAudio.paused;
+          playBtn.classList.toggle("is-playing", isThisPlaying);
+          playBtn.innerHTML = isThisPlaying
+            ? `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`
+            : `<svg viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`;
+          playBtn.addEventListener("click", () => playAudioTrack(t));
+          playTd.appendChild(playBtn);
+        } else {
+          const icon = document.createElement("span");
+          icon.style.cssText = "font-size:16px; opacity:0.6;";
+          icon.textContent = t.is_archive ? "📦" : "🎬";
+          playTd.appendChild(icon);
+        }
+
+        // 2. Name & Details
         const nameTd = document.createElement("td");
         const strong = t.url ? document.createElement("a") : document.createElement("strong");
         strong.className = "track-name";
@@ -625,20 +721,31 @@ document.addEventListener("DOMContentLoaded", () => {
           strong.href = t.url;
           strong.target = "_blank";
           strong.rel = "noreferrer";
-          strong.title = "Open on Artlist";
+          strong.title = "Open source link";
         }
         const sub = document.createElement("div");
-        sub.style.cssText = "font-size: 11px; color: var(--text-dim);";
+        sub.style.cssText = "font-size: 11px; color: var(--ink-3); margin-top:2px;";
         const when = relativeTime(t.downloaded_at);
         sub.textContent = when ? `${t.filename} · ${when}` : t.filename;
         nameTd.append(strong, sub);
 
-        const variantTd = document.createElement("td");
-        const tag = document.createElement("span");
-        tag.className = `status-tag variant-${String(t.variant).toLowerCase()}`;
-        tag.textContent = t.variant;
-        variantTd.appendChild(tag);
+        // 3. Provider & Category Badges
+        const sourceTd = document.createElement("td");
+        const providerName = (t.provider || "artlist").toLowerCase();
+        const categoryName = (t.category || "music").toLowerCase();
+        
+        const provBadge = document.createElement("span");
+        provBadge.className = `badge-tag ${providerName}`;
+        provBadge.textContent = providerName;
 
+        const catBadge = document.createElement("span");
+        catBadge.className = `badge-tag ${categoryName}`;
+        catBadge.style.marginLeft = "6px";
+        catBadge.textContent = categoryName;
+
+        sourceTd.append(provBadge, catBadge);
+
+        // 4. File Size & Container Kind
         const sizeTd = document.createElement("td");
         const sizeWrap = document.createElement("div");
         sizeWrap.className = "size-cell";
@@ -651,34 +758,45 @@ document.addEventListener("DOMContentLoaded", () => {
         sizeWrap.append(sizeVal, kindTag);
         sizeTd.appendChild(sizeWrap);
 
+        // 5. Reuse Count
         const hitsTd = document.createElement("td");
         const hits = document.createElement("strong");
         hits.textContent = t.hit_count;
         hitsTd.appendChild(hits);
 
+        // 6. Action Buttons: Copy Path, Reveal in Explorer, Download
         const actionTd = document.createElement("td");
         const actions = document.createElement("div");
         actions.className = "row-actions";
 
-        // Works from any machine and any OS.
-        const dlBtn = document.createElement("button");
-        dlBtn.type = "button";
-        dlBtn.className = "btn-secondary btn-sm";
-        dlBtn.textContent = "Download";
-        dlBtn.addEventListener("click", () => downloadFile(t, dlBtn));
-
-        // Only meaningful on the machine running the relay.
+        // Copy Path Button (For Premiere Pro / DaVinci Resolve)
         const copyBtn = document.createElement("button");
         copyBtn.type = "button";
-        copyBtn.className = "btn-quiet btn-sm";
-        copyBtn.textContent = "Path";
-        copyBtn.title = "Copy the file path on the relay machine";
+        copyBtn.className = "btn-icon";
+        copyBtn.title = "Copy local path for Premiere Pro / DaVinci Resolve";
+        copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
         copyBtn.addEventListener("click", () => copyPath(t.library_path));
 
-        actions.append(dlBtn, copyBtn);
+        // Reveal in File Explorer Button
+        const revealBtn = document.createElement("button");
+        revealBtn.type = "button";
+        revealBtn.className = "btn-icon";
+        revealBtn.title = "Highlight in Windows File Explorer";
+        revealBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
+        revealBtn.addEventListener("click", () => revealFile(t));
+
+        // Download to Browser Button
+        const dlBtn = document.createElement("button");
+        dlBtn.type = "button";
+        dlBtn.className = "btn-icon";
+        dlBtn.title = "Download copy to browser";
+        dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
+        dlBtn.addEventListener("click", () => downloadFile(t, dlBtn));
+
+        actions.append(copyBtn, revealBtn, dlBtn);
         actionTd.appendChild(actions);
 
-        tr.append(nameTd, variantTd, sizeTd, hitsTd, actionTd);
+        tr.append(playTd, nameTd, sourceTd, sizeTd, hitsTd, actionTd);
         libraryTbody.appendChild(tr);
       }
     } catch (err) {
@@ -686,26 +804,38 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // 3. Search input listener with debounce
+  // --- Category Filter Tabs -------------------------------------------------
+  if (categoryFilterBar) {
+    categoryFilterBar.querySelectorAll(".cat-pill").forEach(btn => {
+      btn.addEventListener("click", () => {
+        categoryFilterBar.querySelectorAll(".cat-pill").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        currentCategory = btn.dataset.cat;
+        fetchLibrary(searchInput.value.trim(), currentCategory);
+      });
+    });
+  }
+
+  // Search input listener
   searchInput.addEventListener("input", (e) => {
     clearTimeout(searchTimeout);
     const value = e.target.value.trim();
-    searchTimeout = setTimeout(() => fetchLibrary(value), 250);
+    searchTimeout = setTimeout(() => fetchLibrary(value, currentCategory), 250);
   });
 
   clearSearchBtn.addEventListener("click", () => {
     searchInput.value = "";
-    fetchLibrary("");
+    fetchLibrary("", currentCategory);
   });
 
-  // 4. Submit New Job Handler
+  // --- Submit New Asset Job -------------------------------------------------
   submitForm.addEventListener("submit", async (e) => {
     e.preventDefault();
     const url = trackUrlInput.value.trim();
     if (!url) return;
 
     submitBtn.disabled = true;
-    submitBtn.querySelector(".btn-text").textContent = "Adding…";
+    submitBtn.querySelector(".btn-text").textContent = "Bridging…";
     submitResult.className = "result-banner hidden";
 
     try {
@@ -716,54 +846,54 @@ document.addEventListener("DOMContentLoaded", () => {
           url: url,
           variant: trackVariantSelect.value,
           format: audioFormatSelect.value,
-          requested_by: "web_editor",
+          requested_by: "studio_editor",
         }),
       });
 
       const data = await res.json();
 
       if (res.status === 200 && data.status === "cached") {
-        showResult("cached", "Already in your library", data.filename, data.library_path);
+        showResult("cached", "Already in Sangraha Library", data.filename, data.library_path);
         trackUrlInput.value = "";
-        fetchLibrary();
+        updateUrlBadge();
+        fetchLibrary("", currentCategory);
         fetchStatus();
       } else if (res.status === 201) {
         showResult(
           "success",
-          `Queued — position ${data.queue_position}`,
-          `About ${Math.round(data.estimated_wait_seconds / 60) || 1} min · ${data.daily_usage} used today`
+          `Queued to Setu — position ${data.queue_position}`,
+          `Estimated ~${Math.round(data.estimated_wait_seconds / 60) || 1} min · Provider: ${(data.provider || "Stock").toUpperCase()}`
         );
         trackUrlInput.value = "";
+        updateUrlBadge();
         fetchStatus();
         fetchQueue();
       } else {
         showResult("error", data.detail || data.error || "Submission failed");
       }
     } catch (err) {
-      showResult("error", "Network error: could not connect to relay server.");
+      showResult("error", "Network error: could not connect to Setu server.");
     } finally {
       submitBtn.disabled = false;
-      submitBtn.querySelector(".btn-text").textContent = "Add to library";
+      submitBtn.querySelector(".btn-text").textContent = "Bridge to Library";
     }
   });
 
   refreshBtn.addEventListener("click", () => {
     fetchStatus();
     fetchQueue();
-    fetchLibrary(searchInput.value.trim());
+    fetchLibrary(searchInput.value.trim(), currentCategory);
   });
 
-  // --- Appearance -----------------------------------------------------------
-  // Three states, as in System Settings. "auto" stores nothing and lets
-  // prefers-color-scheme decide; an explicit choice wins in both directions.
+  // --- Appearance / Theme ---------------------------------------------------
   const themeButtons = Array.from(document.querySelectorAll("[data-theme-choice]"));
 
   function currentThemeChoice() {
     try {
       const saved = localStorage.getItem("relay-theme");
-      return saved === "light" || saved === "dark" ? saved : "auto";
+      return saved === "light" || saved === "dark" ? saved : "dark";
     } catch (e) {
-      return "auto";
+      return "dark";
     }
   }
 
@@ -785,6 +915,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   applyTheme(currentThemeChoice());
 
+  // Initialization
   fetchStatus();
   fetchQueue();
   fetchLibrary();
