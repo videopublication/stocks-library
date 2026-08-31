@@ -4,59 +4,43 @@ A high-performance, automated music and sound effects licensing relay and shared
 
 ---
 
-## 🌟 Key Features
+## 🌟 Key Architecture
 
-* **🛡️ Dual Execution Engines:**
-  * **Option A (Chrome Extension):** Lightweight MV3 extension running in your everyday Chrome profile.
-  * **Option B (Native OS-Level Agent):** Python OS desktop agent using Windows UIAutomation (UIA) and Hardware input (`isTrusted: true`).
+* **🤖 Native OS-Level Automation Agent:**
+  * Uses real Windows operating system hardware input (`isTrusted: true`) and UIAutomation (UIA).
+  * Requires **no Chrome extension, no developer mode, and no browser modifications**.
 * **⚡ Instant Deduplication Cache (<50ms, 0 Quota):**
-  * Once a track is downloaded, subsequent requests return the existing file path instantly with **zero quota spent**.
-* **📦 Full Format Support:**
+  * Once an asset is downloaded, subsequent requests return the existing file path instantly with **zero quota spent**.
+* **📦 Full Format & Provider Support:**
   * Master Lossless WAV music tracks.
-  * Sound Effects (SFX) with size-adjusted verification.
-  * Multi-Track Stems (`.ZIP` archives) with integrity check.
-* **🔒 Two-Stage Atomic Delivery:**
-  * Downloads to isolated staging/downloads directories.
-  * Verifies 12-byte RIFF/WAVE or PKZip headers before atomically moving files into the shared studio library.
+  * Sound Effects (SFX) with 1-click automatic capture.
+  * Multi-Track Stems (`.ZIP` archives) with automated modal navigation.
+  * Support for Artlist and Envato Elements.
+* **🔒 Two-Stage Atomic Verification:**
+  * Downloads to an isolated staging directory (`staging/`).
+  * Verifies RIFF/WAVE or PKZip headers before atomically moving files into the shared studio library (`library/`).
 * **📊 Modern Web Dashboard:**
-  * Search-first library explorer.
+  * Clean dark-mode library explorer with live search.
   * Real-time queue telemetry and daily safety quota tracking.
 
 ---
 
 ## 🚀 Quickstart Guide
 
-### Option 1: Native OS-Level Agent Mode (Recommended for Dedicated Machines)
+### Running the Relay Host (Standalone Native OS Agent)
 
-This mode controls Chrome via **real operating-system hardware clicks (`isTrusted: true`)** using Windows UIAutomation (`pywinauto`) and PyAutoGUI:
+The service runs locally on a designated workstation with an active stock subscription:
 
 ```bash
 # 1. Install dependencies
 pip install fastapi uvicorn pydantic pyautogui pywinauto
 
-# 2. Run Relay with Native OS Agent
+# 2. Start Relay with Native OS Automation Agent
 python run_relay.py --os-agent
 ```
 
-* Open the dashboard at **`http://127.0.0.1:5000`** (or `http://<YOUR_IP>:5000` from any computer on the LAN).
-* Paste any Music, SFX, or Stems link. The OS Agent will bring Chrome to the front, use UIA to locate the precise DOM element coordinates, click them with real hardware input, and deliver the asset to `library/`!
-
-> [!WARNING]
-> **Physical Desktop Required**: The OS Agent requires an active, unobstructed Windows desktop session. **Screensavers, lock screens, and minimized/disconnected RDP sessions will instantly break OS-level input injection and UIA traversal.** The agent will fail safely, but jobs will not process until the session is unlocked.
-
----
-
-### Option 2: Chrome Extension Mode (Standard Web Worker)
-
-```bash
-# 1. Start Server
-python run_relay.py
-
-# 2. Load Extension in Chrome
-# - Open chrome://extensions
-# - Enable 'Developer mode'
-# - Click 'Load unpacked' -> Select 'd:\Code\Artlist\extension'
-```
+* **Dashboard URL:** `http://127.0.0.1:5000` (or `http://<HOST_IP>:5000` across the local office network).
+* **Usage:** Paste any track or SFX link into the dashboard. The agent will bring Chrome into focus, navigate to the asset, click download with organic human-like mouse trajectories, verify the file, and place it directly into `library/`!
 
 ---
 
@@ -65,25 +49,23 @@ python run_relay.py
 ```
 Artlist/
 ├── backend/
-│   ├── os_agent.py         # Native OS-Level Automation Agent (UIA + Hardware Input)
+│   ├── os_agent.py         # Native OS-Level Automation Engine (UIA + Hardware Input)
+│   ├── vision.py           # Gemini Multimodal Vision UI Grounding Engine
+│   ├── service.py          # Atomic file delivery, RIFF/ZIP checks, & deduplication cache
+│   ├── database.py         # SQLite WAL schema & connection management
 │   ├── config.py           # Configuration (Paths, Safe Quotas, Working Hours)
-│   ├── database.py         # SQLite WAL mode & single-writer lock
-│   ├── models.py           # Pydantic API & Telemetry schemas
-│   ├── service.py          # Atomic file delivery, RIFF check & Cache
+│   ├── models.py           # Pydantic schemas & telemetry models
 │   ├── main.py             # FastAPI REST endpoints
-│   └── web/                # High-aesthetic dark mode Web UI
+│   ├── reset_queue.py      # Circuit breaker & maintenance reset script
+│   └── web/                # Local Web Dashboard UI
 │       ├── index.html
 │       ├── style.css
 │       └── app.js
-├── extension/              # Manifest V3 Chrome Extension
-│   ├── manifest.json
-│   ├── selectors.js        # Resilient Artlist DOM selector dictionary
-│   ├── content.js          # Human-mimicry execution & mouse trajectory
-│   └── background.js       # Alarms keepalive & chrome.downloads tracking
 ├── staging/                # Temporary download directory (watched by Agent)
-├── library/                # Shared Artlist Library (synced to Drive/NAS)
-├── run_relay.py            # Startup runner (supports --os-agent)
-└── test_relay.py           # Automated unit & integration tests
+├── library/                # Shared Media Library (synced to Drive/NAS)
+├── IT_Approval_Request_and_Security_Brief.md # Official IT Security Document
+├── run_relay.py            # Startup runner (python run_relay.py --os-agent)
+└── test_relay.py           # Automated unit & integration test suite (15/15 tests)
 ```
 
 ---
