@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>Artlist Library</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <script>
+    // Applied before first paint so the correct theme is up immediately - a
+    // flash of the wrong appearance is the most visible thing a theme can do.
+    (function () {
+      var saved = null;
+      try { saved = localStorage.getItem('relay-theme'); } catch (e) {}
+      if (saved === 'light' || saved === 'dark') {
+        document.documentElement.setAttribute('data-theme', saved);
+      }
+    })();
+  </script>
+</head>
+<body>
+
+<header class="toolbar">
+  <div class="toolbar-lead">
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 18V5l12-2v13"></path>
+        <circle cx="6" cy="18" r="3"></circle>
+        <circle cx="18" cy="16" r="3"></circle>
+      </svg>
+    </span>
+    <div class="wordmark">
+      <h1>Artlist Library</h1>
+      <p>Local download relay</p>
+    </div>
+  </div>
+
+  <div class="toolbar-trail">
+    <span class="pill" id="server-status">
+      <i class="dot" aria-hidden="true"></i><span class="text">Relay active</span>
+    </span>
+    <span class="pill" id="session-status">
+      <i class="dot" aria-hidden="true"></i><span class="text">Checking</span>
+    </span>
+
+    <div class="segmented" role="group" aria-label="Appearance">
+      <button type="button" data-theme-choice="light">Light</button>
+      <button type="button" data-theme-choice="auto">Auto</button>
+      <button type="button" data-theme-choice="dark">Dark</button>
+    </div>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- Inspector ------------------------------------------------------------ -->
+  <aside class="inspector">
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Search library</h2>
+        <span class="hint">No quota</span>
+      </div>
+      <p class="panel-note">Check what you already have before downloading again.</p>
+      <div class="field search">
+        <svg class="field-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+             stroke-width="1.5" aria-hidden="true">
+          <circle cx="7" cy="7" r="4.5"></circle><path d="M10.5 10.5L14 14"></path>
+        </svg>
+        <input type="search" id="library-search-input" placeholder="Track name or ID" autofocus>
+        <button type="button" id="clear-search-btn" class="field-clear" aria-label="Clear search">✕</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Add a track</h2></div>
+      <form id="submit-form" novalidate>
+        <label class="label" for="track-url">Artlist URL</label>
+        <div class="field">
+          <input type="url" id="track-url"
+                 placeholder="artlist.io/royalty-free-music/song/…" required>
+        </div>
+
+        <div class="field-row">
+          <div>
+            <label class="label" for="track-variant">Version</label>
+            <div class="field select">
+              <!-- Artlist offers the main track and stems. The extra options here
+                   came from the original spec, not the site. -->
+              <select id="track-variant">
+                <option value="main">Main track</option>
+                <option value="stems">Stems</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="label" for="audio-format">Format</label>
+            <div class="field select">
+              <select id="audio-format">
+                <option value="WAV">WAV</option>
+                <option value="MP3">MP3</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" id="submit-btn" class="btn-primary btn-block">
+          <span class="btn-text">Add to library</span>
+        </button>
+      </form>
+      <div id="submit-result" class="result-banner hidden"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Today</h2>
+        <span class="mono" id="quota-text">0/20</span>
+      </div>
+      <div class="meter"><div class="meter-fill" id="quota-bar" style="width:0%"></div></div>
+      <dl class="stats">
+        <div><dt>Cache hits</dt><dd class="mono" id="cache-hits-val">0</dd></div>
+        <div><dt>In queue</dt><dd class="mono" id="queue-depth-val">0</dd></div>
+        <div><dt>Disk free</dt><dd class="mono" id="disk-free-val">—</dd></div>
+        <div class="stat-wide"><dt>Library</dt><dd class="mono" id="library-total">0 tracks</dd></div>
+      </dl>
+    </section>
+
+  </aside>
+
+  <!-- Content -------------------------------------------------------------- -->
+  <section class="content">
+
+    <div id="dldir-banner" class="notice notice-warn hidden">
+      <div>
+        <strong>Chrome is saving downloads elsewhere</strong>
+        <span id="dldir-detail"></span>
+        <span class="notice-fix">Open <code>chrome://settings/downloads</code>, set the location to
+          the staging folder, and turn off “Ask where to save each file”.</span>
+      </div>
+    </div>
+
+    <div id="paused-banner" class="notice notice-error hidden">
+      <div>
+        <strong>Queue paused</strong>
+        <span id="paused-reason">Circuit breaker tripped</span>
+      </div>
+      <button type="button" id="resume-btn" class="btn-primary btn-sm">Resume</button>
+    </div>
+
+    <section class="panel activity">
+      <div class="panel-head">
+        <h2>Activity</h2>
+        <button type="button" id="refresh-btn" class="btn-quiet btn-sm">Refresh</button>
+      </div>
+
+      <div id="cooldown-banner" class="cooldown hidden">
+        <span class="cooldown-count mono" id="cooldown-seconds">0</span>
+        <div>
+          <strong>Pacing</strong>
+          <span>Waiting before the next download.</span>
+        </div>
+      </div>
+
+      <div id="in-flight-container" class="inflight hidden">
+        <div class="inflight-head">
+          <div class="inflight-ident">
+            <span class="live" aria-hidden="true"></span>
+            <span class="title" id="in-flight-title">Working</span>
+            <span class="chip" id="in-flight-variant">main</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="inflight-time mono">
+              <span id="in-flight-elapsed">0:00</span><span class="sep">/</span><span class="dim" id="in-flight-timeout">3:00</span>
+            </div>
+            <button type="button" id="cancel-inflight-btn" class="btn-secondary btn-sm" style="padding:2px 8px; font-size:11px; color:#ff6b6b; border-color:rgba(255,107,107,0.3); border-radius:4px;" title="Cancel this job">Cancel</button>
+          </div>
+        </div>
+
+        <div class="phase-track" id="phase-track"></div>
+        <div class="phase-label" id="in-flight-phase">Waiting in queue</div>
+
+        <div class="dl hidden" id="dl-progress">
+          <div class="dl-rail"><div class="dl-fill" id="dl-bar"></div></div>
+          <div class="dl-meta mono"><span id="dl-text">0 MB</span><span id="dl-pct">0%</span></div>
+        </div>
+      </div>
+
+      <div id="queue-list" class="queue">
+        <div class="empty">Nothing queued</div>
+      </div>
+
+      <div id="recent-section" class="recent hidden">
+        <div class="recent-header">
+          <h3>Recent</h3>
+          <button type="button" id="clear-recent-btn" class="btn-quiet btn-sm">Clear</button>
+        </div>
+        <div id="recent-list"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Library</h2>
+        <span class="hint" id="library-count">0 tracks</span>
+      </div>
+      <div class="table-wrap">
+        <table class="library">
+          <thead>
+            <tr>
+              <th>Track</th><th>Version</th><th>Size</th>
+              <th class="num" title="Times this track was served from the library instead of downloading again">Reused</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="library-tbody">
+            <tr><td colspan="5" class="empty-table">Loading…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

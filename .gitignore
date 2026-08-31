@@ -1,0 +1,38 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+
+# Database and state files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Audio downloads and staging directories
+staging/
+library/
+
+# Environment and secrets
+.env
+.env.local
+*.key
+*.pem
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# IDE configuration
+.vscode/
+.idea/
+*.swp
+*.swo
