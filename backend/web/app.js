@@ -1,4 +1,4 @@
-// Setu (सेतु) Creative Asset Bridge — Studio Application Engine
+// Setu (सेतु) Studio Creative Asset Bridge Engine
 document.addEventListener("DOMContentLoaded", () => {
   // Navigation & Telemetry
   const serverStatus = document.getElementById("server-status");
@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const quotaBar = document.getElementById("quota-bar");
   const cacheHitsVal = document.getElementById("cache-hits-val");
   const diskFreeVal = document.getElementById("disk-free-val");
-  const queueDepthVal = document.getElementById("queue-depth-val");
+  const queueDepthBadge = document.getElementById("queue-depth-badge");
   const todayDownloadsVal = document.getElementById("today-downloads-val");
   const libraryTotalCount = document.getElementById("library-total-count");
 
@@ -22,10 +22,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const audioFormatGroup = document.getElementById("audio-format-group");
   const submitBtn = document.getElementById("submit-btn");
   const submitResult = document.getElementById("submit-result");
-  const quickChips = document.querySelectorAll(".chip-hint");
-
-  // In-Flight Automation Activity
   const refreshBtn = document.getElementById("refresh-btn");
+
+  // In-Flight Automation
   const cooldownBanner = document.getElementById("cooldown-banner");
   const cooldownSeconds = document.getElementById("cooldown-seconds");
   const inFlightContainer = document.getElementById("in-flight-container");
@@ -59,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const categoryFilterBar = document.getElementById("category-filter-bar");
   const libraryTbody = document.getElementById("library-tbody");
 
-  // Audio Player
+  // Audio Player Elements
   const audioPlayerBar = document.getElementById("audio-player-bar");
   const playerPlayBtn = document.getElementById("player-play-btn");
   const playerPlayIcon = document.getElementById("player-play-icon");
@@ -72,7 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const playerCloseBtn = document.getElementById("player-close-btn");
   const toastBox = document.getElementById("toast-box");
 
-  // Internal State
+  // State
   let currentAudio = new Audio();
   let currentPlayingTrackId = null;
   let currentPlayingVariant = null;
@@ -116,9 +115,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (Number.isNaN(then)) return "";
     const diff = Math.floor((Date.now() - then) / 1000);
     if (diff < 45) return "just now";
-    if (diff < 90) return "1 min ago";
-    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
-    if (diff < 7200) return "1 hour ago";
+    if (diff < 90) return "1m ago";
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 7200) return "1h ago";
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     const days = Math.floor(diff / 86400);
     return days === 1 ? "yesterday" : `${days}d ago`;
@@ -129,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const toast = document.createElement("div");
     toast.className = "toast";
     toast.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--copper-primary)" stroke-width="2.5">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent-copper)" stroke-width="2.5">
         <path d="M20 6L9 17l-5-5"/>
       </svg>
       <span>${msg}</span>
@@ -140,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
       toast.style.transform = "translateY(8px)";
       toast.style.transition = "all 0.2s ease";
       setTimeout(() => toast.remove(), 200);
-    }, 2500);
+    }, 2400);
   }
 
   // --- Dynamic URL Provider Detector ---------------------------------------
@@ -149,23 +148,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const u = url.trim().toLowerCase();
     if (u.includes("artlist.io")) {
       if (u.includes("/sfx/") || u.includes("sound-effects")) {
-        return { name: "Artlist", type: "sfx", badge: "🎵 Artlist • SFX", cls: "artlist", isAudio: true };
+        return { name: "Artlist", type: "sfx", badge: "Artlist • SFX", cls: "artlist", isAudio: true };
       }
-      return { name: "Artlist", type: "music", badge: "🎵 Artlist • Music", cls: "artlist", isAudio: true };
+      return { name: "Artlist", type: "music", badge: "Artlist • Music", cls: "artlist", isAudio: true };
     }
     if (u.includes("envato.com")) {
       if (u.includes("video-template")) {
-        return { name: "Envato", type: "video-template", badge: "🎬 Envato • Video Template", cls: "envato", isAudio: false };
+        return { name: "Envato", type: "video-template", badge: "Envato • Video Template", cls: "envato", isAudio: false };
       } else if (u.includes("stock-video")) {
-        return { name: "Envato", type: "stock-video", badge: "🎥 Envato • Stock Video", cls: "envato", isAudio: false };
+        return { name: "Envato", type: "stock-video", badge: "Envato • Stock Video", cls: "envato", isAudio: false };
       } else if (u.includes("graphic-template")) {
-        return { name: "Envato", type: "graphic-template", badge: "🎨 Envato • Graphics", cls: "envato", isAudio: false };
+        return { name: "Envato", type: "graphic-template", badge: "Envato • Graphics", cls: "envato", isAudio: false };
       } else if (u.includes("sound-effect") || u.includes("/sfx")) {
-        return { name: "Envato", type: "sfx", badge: "🔊 Envato • SFX", cls: "envato", isAudio: true };
+        return { name: "Envato", type: "sfx", badge: "Envato • SFX", cls: "envato", isAudio: true };
       } else if (u.includes("music") || u.includes("audio")) {
-        return { name: "Envato", type: "music", badge: "🎵 Envato • Music", cls: "envato", isAudio: true };
+        return { name: "Envato", type: "music", badge: "Envato • Music", cls: "envato", isAudio: true };
       }
-      return { name: "Envato", type: "template", badge: "📦 Envato Elements", cls: "envato", isAudio: false };
+      return { name: "Envato", type: "template", badge: "Envato Elements", cls: "envato", isAudio: false };
     }
     return null;
   }
@@ -181,10 +180,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const info = detectProvider(val);
     if (info) {
       urlDetectedBadge.textContent = info.badge;
-      urlDetectedBadge.className = `url-detected-badge badge-tag ${info.cls}`;
+      urlDetectedBadge.className = `detected-badge ${info.cls}`;
       urlDetectedBadge.classList.remove("hidden");
       
-      // Adapt audio format dropdown
       if (!info.isAudio) {
         if (audioFormatGroup) audioFormatGroup.style.display = "none";
         trackVariantSelect.innerHTML = `<option value="main">Main Asset Package (ZIP)</option>`;
@@ -203,8 +201,8 @@ document.addEventListener("DOMContentLoaded", () => {
       urlDetectedBadge.classList.add("hidden");
       if (audioFormatGroup) audioFormatGroup.style.display = "block";
       trackVariantSelect.innerHTML = `
-        <option value="main">Main track / Asset</option>
-        <option value="stems">Stems (ZIP)</option>
+        <option value="main">Main Asset / Track</option>
+        <option value="stems">Multi-Track Stems (ZIP)</option>
       `;
     }
   }
@@ -217,23 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
     trackUrlInput.focus();
   });
 
-  // Quick preset chips
-  quickChips.forEach(chip => {
-    chip.addEventListener("click", () => {
-      const type = chip.dataset.type;
-      if (type === "artlist") {
-        trackUrlInput.value = "https://artlist.io/royalty-free-music/song/";
-      } else if (type === "envato-templates") {
-        trackUrlInput.value = "https://elements.envato.com/video-templates/";
-      } else if (type === "envato-sfx") {
-        trackUrlInput.value = "https://elements.envato.com/audio/sound-effects/";
-      }
-      updateUrlInputState();
-      trackUrlInput.focus();
-    });
-  });
-
-  // Global keyboard shortcut ('/' to search)
+  // Global Keyboard Shortcut ('/' to search)
   document.addEventListener("keydown", (e) => {
     if (e.key === "/" && document.activeElement !== trackUrlInput && document.activeElement !== librarySearchInput) {
       e.preventDefault();
@@ -256,7 +238,7 @@ document.addEventListener("DOMContentLoaded", () => {
       playerPlayIcon.innerHTML = `<polygon points="5 3 19 12 5 21 5 3"></polygon>`;
     }
 
-    document.querySelectorAll(".btn-play-trigger").forEach(btn => {
+    document.querySelectorAll(".btn-table-play").forEach(btn => {
       const isThis = btn.dataset.trackId === currentPlayingTrackId;
       btn.classList.toggle("is-playing", isThis && isPlaying);
       if (isThis && isPlaying) {
@@ -344,12 +326,17 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // --- File Actions: Copy, Reveal, Download ---------------------------------
-  function copyPath(path) {
+  // --- Tactile File Actions: Copy, Reveal, Download -------------------------
+  function copyPath(path, btnEl) {
     navigator.clipboard
       .writeText(path)
       .then(() => {
-        showToast("Local path copied to clipboard!");
+        showToast("Path copied to clipboard!");
+        if (btnEl) {
+          const original = btnEl.innerHTML;
+          btnEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="var(--status-emerald)" stroke-width="2.5"><path d="M20 6L9 17l-5-5"/></svg>`;
+          setTimeout(() => { btnEl.innerHTML = original; }, 1400);
+        }
       })
       .catch((err) => console.error("Could not copy: ", err));
   }
@@ -393,7 +380,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showResult(kind, heading, detail, pathToCopy) {
-    submitResult.className = `result-banner ${kind}`;
+    submitResult.className = `result-box ${kind}`;
     submitResult.textContent = "";
 
     const strong = document.createElement("strong");
@@ -411,10 +398,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (pathToCopy) {
       submitResult.appendChild(document.createElement("br"));
       const btn = document.createElement("button");
-      btn.className = "btn-tool";
-      btn.style.marginTop = "8px";
-      btn.textContent = "📋 Copy Local Path";
-      btn.addEventListener("click", () => copyPath(pathToCopy));
+      btn.className = "header-icon-btn";
+      btn.style.cssText = "margin-top:6px; padding:3px 8px; width:auto; font-size:11px; gap:4px;";
+      btn.textContent = "Copy Filepath";
+      btn.addEventListener("click", () => copyPath(pathToCopy, btn));
       submitResult.appendChild(btn);
     }
   }
@@ -496,7 +483,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderQueued(jobs) {
     if (!jobs || jobs.length === 0) {
-      queueList.innerHTML = '<div class="empty-state">No items currently queued</div>';
+      queueList.innerHTML = '<div class="empty-placeholder">No items in queue. Bridge an asset above to start.</div>';
       clock.etas.clear();
       return;
     }
@@ -532,7 +519,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const cancelBtn = document.createElement("button");
       cancelBtn.type = "button";
-      cancelBtn.className = "btn-icon-action";
+      cancelBtn.className = "btn-remove-queue";
       cancelBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
       cancelBtn.title = "Cancel Queue Item";
       cancelBtn.addEventListener("click", async () => {
@@ -665,10 +652,11 @@ document.addEventListener("DOMContentLoaded", () => {
       quotaText.textContent = data.daily_usage;
       const pct = Math.min(100, Math.round((data.daily_downloads / data.daily_limit) * 100));
       quotaBar.style.width = `${pct}%`;
-      if (quotaPercent) quotaPercent.textContent = `${pct}%`;
+      if (quotaPercent) quotaPercent.textContent = `${pct}% used`;
 
       if (todayDownloadsVal) todayDownloadsVal.textContent = data.daily_downloads;
       if (libraryTotalCount) libraryTotalCount.textContent = data.library_count || 0;
+      if (queueDepthBadge) queueDepthBadge.textContent = `${data.queue_depth} queued`;
 
       if (data.chrome_download_dir && data.download_dir_ok === false) {
         dldirBanner.classList.remove("hidden");
@@ -679,42 +667,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
       cacheHitsVal.textContent = data.today_cache_hits;
       diskFreeVal.textContent = `${data.disk_free_gb} GB`;
-      queueDepthVal.textContent = data.queue_depth;
 
       if (data.queue_paused) {
-        serverStatus.className = "pill-node danger";
-        serverStatus.querySelector(".pill-label").textContent = `Paused (${data.consecutive_failures} fails)`;
+        serverStatus.className = "status-node danger";
+        serverStatus.querySelector(".status-label").textContent = `Paused (${data.consecutive_failures} fails)`;
         pausedBanner.classList.remove("hidden");
         pausedReason.textContent = `${data.consecutive_failures} consecutive failures detected. Fix the issue and resume.`;
       } else if (!data.storage_ok) {
         pausedBanner.classList.add("hidden");
-        serverStatus.className = "pill-node danger";
-        serverStatus.querySelector(".pill-label").textContent = "Low Disk Space";
+        serverStatus.className = "status-node danger";
+        serverStatus.querySelector(".status-label").textContent = "Low Disk Space";
       } else {
-        serverStatus.className = "pill-node online";
-        serverStatus.querySelector(".pill-label").textContent = "Bridge Active";
+        serverStatus.className = "status-node online";
+        serverStatus.querySelector(".status-label").textContent = "Bridge Ready";
         pausedBanner.classList.add("hidden");
       }
 
       const workerLabel = data.worker_type === "os_agent" ? "OS Agent" : "Extension";
       if (data.heartbeat_stale) {
-        sessionStatus.className = "pill-node warning";
-        sessionStatus.querySelector(".pill-label").textContent = `${workerLabel}: Offline`;
+        sessionStatus.className = "status-node warning";
+        sessionStatus.querySelector(".status-label").textContent = `${workerLabel}: Offline`;
       } else if (data.session_authenticated) {
-        sessionStatus.className = "pill-node online";
-        sessionStatus.querySelector(".pill-label").textContent = `${workerLabel}: Ready`;
+        sessionStatus.className = "status-node online";
+        sessionStatus.querySelector(".status-label").textContent = `${workerLabel}: Active`;
       } else {
-        sessionStatus.className = "pill-node warning";
-        sessionStatus.querySelector(".pill-label").textContent = "Auth Required";
+        sessionStatus.className = "status-node warning";
+        sessionStatus.querySelector(".status-label").textContent = "Auth Required";
       }
 
     } catch (err) {
-      serverStatus.className = "pill-node danger";
-      serverStatus.querySelector(".pill-label").textContent = "Server Offline";
+      serverStatus.className = "status-node danger";
+      serverStatus.querySelector(".status-label").textContent = "Server Offline";
     }
   }
 
-  // --- Fetch & Render Library -----------------------------------------------
+  // --- Fetch & Render Sangraha Library --------------------------------------
   async function fetchLibrary(query = "", category = currentCategory) {
     try {
       const res = await apiFetch(`/api/v1/library?q=${encodeURIComponent(query)}&category=${encodeURIComponent(category)}`);
@@ -727,10 +714,10 @@ document.addEventListener("DOMContentLoaded", () => {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
         td.colSpan = 6;
-        td.className = "table-empty-row";
+        td.className = "table-placeholder-cell";
         td.innerHTML = `
-          <div class="table-empty-state">
-            <p>${query ? 'No matching assets found in Sangraha.' : 'No assets in this category yet. Bridge your first item on the left!'}</p>
+          <div class="loading-state-wrap">
+            <p>${query ? 'No matching assets found in Sangraha archive.' : 'No assets in this category yet. Bridge your first item on the left!'}</p>
           </div>
         `;
         tr.appendChild(td);
@@ -743,13 +730,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
         // 1. Play Trigger Button
         const playTd = document.createElement("td");
-        playTd.className = "th-play";
+        playTd.className = "col-stream";
         if (t.streamable) {
           const playBtn = document.createElement("button");
           playBtn.type = "button";
-          playBtn.className = "btn-play-trigger";
+          playBtn.className = "btn-table-play";
           playBtn.dataset.trackId = t.track_id;
-          playBtn.title = "Play audio stream";
+          playBtn.title = "Play / Preview Audio";
           const isThisPlaying = currentPlayingTrackId === t.track_id && !currentAudio.paused;
           playBtn.classList.toggle("is-playing", isThisPlaying);
           playBtn.innerHTML = isThisPlaying
@@ -759,16 +746,16 @@ document.addEventListener("DOMContentLoaded", () => {
           playTd.appendChild(playBtn);
         } else {
           const icon = document.createElement("span");
-          icon.style.cssText = "font-size:18px; opacity:0.75; display:inline-block; margin-left:6px;";
+          icon.style.cssText = "font-size:16px; opacity:0.6; display:inline-block; margin-left:4px;";
           icon.textContent = t.is_archive ? "📦" : "🎬";
           playTd.appendChild(icon);
         }
 
         // 2. Asset Name & Source Link
         const nameTd = document.createElement("td");
-        nameTd.className = "th-asset";
+        nameTd.className = "col-asset";
         const strong = t.url ? document.createElement("a") : document.createElement("strong");
-        strong.className = "track-link";
+        strong.className = "asset-title-link";
         strong.textContent = shortTitle(t.title) || t.filename;
         if (t.url) {
           strong.href = t.url;
@@ -777,56 +764,55 @@ document.addEventListener("DOMContentLoaded", () => {
           strong.title = "Open original stock link";
         }
         const sub = document.createElement("div");
-        sub.className = "track-filename-sub";
+        sub.className = "asset-sub-meta";
         const when = relativeTime(t.downloaded_at);
         sub.textContent = when ? `${t.filename} · ${when}` : t.filename;
         nameTd.append(strong, sub);
 
         // 3. Platform & Category Badges
         const sourceTd = document.createElement("td");
-        sourceTd.className = "th-source";
+        sourceTd.className = "col-provider";
         const providerName = (t.provider || "artlist").toLowerCase();
         const categoryName = (t.category || "music").toLowerCase();
         
         const provBadge = document.createElement("span");
-        provBadge.className = `badge-tag ${providerName}`;
+        provBadge.className = `provider-badge ${providerName}`;
         provBadge.textContent = providerName;
 
         const catBadge = document.createElement("span");
-        catBadge.className = `badge-tag ${categoryName}`;
-        catBadge.style.marginLeft = "6px";
+        catBadge.className = "category-tag";
         catBadge.textContent = categoryName;
 
         sourceTd.append(provBadge, catBadge);
 
         // 4. Size & Extension
         const sizeTd = document.createElement("td");
-        sizeTd.className = "th-size mono";
+        sizeTd.className = "col-size mono";
         sizeTd.textContent = formatBytes(t.bytes);
 
         // 5. Reuse Count
         const hitsTd = document.createElement("td");
-        hitsTd.className = "th-reused mono";
+        hitsTd.className = "col-reused mono";
         hitsTd.textContent = t.hit_count;
 
         // 6. Action Toolbar
         const actionTd = document.createElement("td");
-        actionTd.className = "th-actions";
+        actionTd.className = "col-actions";
         const actionsGroup = document.createElement("div");
-        actionsGroup.className = "row-actions-group";
+        actionsGroup.className = "row-actions-container";
 
         // Copy Path Button (For Premiere Pro / Resolve)
         const copyBtn = document.createElement("button");
         copyBtn.type = "button";
-        copyBtn.className = "btn-icon-action";
+        copyBtn.className = "btn-action-icon";
         copyBtn.title = "Copy local filepath for Premiere / DaVinci Resolve";
         copyBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
-        copyBtn.addEventListener("click", () => copyPath(t.library_path));
+        copyBtn.addEventListener("click", () => copyPath(t.library_path, copyBtn));
 
         // Reveal in File Explorer Button
         const revealBtn = document.createElement("button");
         revealBtn.type = "button";
-        revealBtn.className = "btn-icon-action";
+        revealBtn.className = "btn-action-icon";
         revealBtn.title = "Highlight in Windows File Explorer";
         revealBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>`;
         revealBtn.addEventListener("click", () => revealFile(t));
@@ -834,7 +820,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Download Copy Button
         const dlBtn = document.createElement("button");
         dlBtn.type = "button";
-        dlBtn.className = "btn-icon-action";
+        dlBtn.className = "btn-action-icon";
         dlBtn.title = "Download copy to browser";
         dlBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
         dlBtn.addEventListener("click", () => downloadFile(t, dlBtn));
@@ -852,9 +838,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Category Filter Tabs -------------------------------------------------
   if (categoryFilterBar) {
-    categoryFilterBar.querySelectorAll(".cat-tab").forEach(btn => {
+    categoryFilterBar.querySelectorAll(".category-pill").forEach(btn => {
       btn.addEventListener("click", () => {
-        categoryFilterBar.querySelectorAll(".cat-tab").forEach(b => b.classList.remove("active"));
+        categoryFilterBar.querySelectorAll(".category-pill").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         currentCategory = btn.dataset.cat;
         fetchLibrary(librarySearchInput.value.trim(), currentCategory);
@@ -871,7 +857,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       clearSearchBtn.style.display = "none";
     }
-    searchTimeout = setTimeout(() => fetchLibrary(value, currentCategory), 200);
+    searchTimeout = setTimeout(() => fetchLibrary(value, currentCategory), 180);
   });
 
   clearSearchBtn.addEventListener("click", () => {
@@ -888,7 +874,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     submitBtn.disabled = true;
     submitBtn.querySelector(".btn-text").textContent = "Bridging...";
-    submitResult.className = "result-banner hidden";
+    submitResult.className = "result-box hidden";
 
     try {
       const res = await apiFetch("/api/v1/jobs", {
@@ -905,7 +891,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await res.json();
 
       if (res.status === 200 && data.status === "cached") {
-        showResult("cached", "⚡ Instant Cache Hit — Already in Sangraha!", data.filename, data.library_path);
+        showResult("cached", "Instant Cache Hit — Already in Sangraha", data.filename, data.library_path);
         trackUrlInput.value = "";
         updateUrlInputState();
         fetchLibrary("", currentCategory);
@@ -914,7 +900,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showResult(
           "success",
           `Queued to Setu — Queue Position #${data.queue_position}`,
-          `Estimated ~${Math.round(data.estimated_wait_seconds / 60) || 1} min · Provider: ${(data.provider || "Stock").toUpperCase()}`
+          `Estimated ~${Math.round(data.estimated_wait_seconds / 60) || 1} min · Platform: ${(data.provider || "Stock").toUpperCase()}`
         );
         trackUrlInput.value = "";
         updateUrlInputState();
@@ -924,10 +910,10 @@ document.addEventListener("DOMContentLoaded", () => {
         showResult("error", data.detail || data.error || "Submission failed");
       }
     } catch (err) {
-      showResult("error", "Network error: unable to reach Setu local server.");
+      showResult("error", "Network error: unable to connect to Setu local server.");
     } finally {
       submitBtn.disabled = false;
-      submitBtn.querySelector(".btn-text").textContent = "Bridge to Library";
+      submitBtn.querySelector(".btn-text").textContent = "Bridge to Sangraha";
     }
   });
 
