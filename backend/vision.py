@@ -15,7 +15,12 @@ from typing import Optional, Tuple, Dict, Any
 from pathlib import Path
 
 import pyautogui
-from PIL import Image
+try:
+    from PIL import Image
+    PIL_AVAILABLE = True
+except ImportError:
+    Image = None
+    PIL_AVAILABLE = False
 
 # Read API Key
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
@@ -23,11 +28,14 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
 
 def is_vision_enabled() -> bool:
     """Check if Gemini Vision is configured and available."""
-    return bool(GEMINI_API_KEY and GEMINI_API_KEY.strip())
+    return bool(PIL_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY.strip())
 
 
 def capture_screen_base64() -> Tuple[str, int, int]:
     """Captures the primary monitor and returns JPEG base64 + screen dimensions."""
+    if not PIL_AVAILABLE or Image is None:
+        raise RuntimeError("Pillow is required for Gemini Vision screenshot capture. Run: pip install Pillow")
+
     screenshot = pyautogui.screenshot()
     w, h = screenshot.size
 
