@@ -16,6 +16,17 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Optional, Tuple, Dict, Any, List
 
+# Ensure Windows Per-Monitor DPI Awareness so laptop display scaling (125%/150%) does not distort click coordinates
+if sys.platform == "win32":
+    import ctypes
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
 import pyautogui
 import win32gui
 import win32con
@@ -123,11 +134,11 @@ def open_url_in_chrome(url: str, timeout: float = 15.0):
 
 
 def focus_chrome_safely(chrome_win):
-    """Asserts focus safely. Desktop must be unlocked."""
+    """Asserts focus safely and ensures Chrome is maximized on screen."""
     try:
         hwnd = getattr(chrome_win, "handle", None)
         if hwnd:
-            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+            win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
             win32gui.SetForegroundWindow(hwnd)
         chrome_win.set_focus()
         time.sleep(0.4)
@@ -271,8 +282,8 @@ def find_uia_element(chrome_win, title_re: str, control_types: Optional[List[str
 
 def locate_track_download_target(chrome_win) -> Tuple[int, int]:
     """
-    Finds the exact (X, Y) coordinates of the circular Download button in the track Hero section / SFX row.
-    Uses Gemini Vision if configured, with Play button anchor fallback.
+    Finds the exact (X, Y) coordinates of the Download button in the track Hero section / SFX row.
+    Uses Gemini Vision if configured, with UIA element fallback.
     """
     # 0. Try Gemini Multimodal Vision if API Key is configured
     if is_vision_enabled():
@@ -280,31 +291,85 @@ def locate_track_download_target(chrome_win) -> Tuple[int, int]:
         if pt:
             return pt
 
-    # 1. Search for Play button anchor in the main content area (min_x=180, min_y=150)
-    play_rect = find_uia_element(chrome_win, title_re=r"(?i)^(Play|Play\s*track|Play\s*song|Play\s*sfx|^Play.*)$", min_x=180, min_y=150, timeout=4.0)
-    if play_rect:
-        print(f"[OS Agent] Found 'Play' anchor button at {play_rect}")
-        # On Artlist's Hero section, the circular Download button is 35px right of Play button edge
-        target_x = play_rect.right + 35
-        target_y = play_rect.mid_point().y
-        return target_x, target_y
-
-    # 2. Fallback: Search for direct download element (min_x=180, min_y=150 to skip sidebar & top nav)
-    dl_rect = find_uia_element(chrome_win, title_re=r"(?i).*(direct\s*download|download\s*track|download\s*song|download\s*sfx).*", min_x=180, min_y=150, timeout=4.0)
+    # 1. Direct download button search via title / aria-label
+    dl_rect = find_uia_element(
+        chrome_win,
+        title_re=r"(?i).*(direct\s*download|download\s*track|download\s*song|download\s*sfx|download\s*wav|download\s*mp3).*",
+        min_x=100,
+        min_y=120,
+        timeout=4.0
+    )
     if dl_rect:
         return dl_rect.mid_point().x, dl_rect.mid_point().y
 
-    # 3. Broader download element fallback (strictly min_x=180, min_y=150 and max_y < 75%)
-    dl_rect = find_uia_element(chrome_win, title_re=r"(?i).*download.*", min_x=180, min_y=150, max_y_ratio=0.75, timeout=3.0)
+    # 2. Search for circular download button with exact or prefix 'Download'
+    dl_rect = find_uia_element(
+        chrome_win,
+        title_re=r"(?i)^download$",
+        control_types=["Button", "Hyperlink", "Custom", "Image"],
+        min_x=100,
+        min_y=120,
+        timeout=3.0
+    )
+    if dl_rect:
+        return dl_rect.mid_point().x, dl_rect.mid_point().y
+
+    # 3. Search for Play button anchor in the main content area
+    play_rect = find_uia_element(chrome_win, title_re=r"(?i)^(Play|Play\s*track|Play\s*song|Play\s*sfx|^Play.*)$", min_x=100, min_y=120, timeout=3.5)
+    if play_rect:
+        print(f"[OS Agent] Found 'Play' anchor button at {play_rect}")
+        target_x = play_rect.right + int(play_rect.width() * 0.75)
+        target_y = play_rect.mid_point().y
+        return target_x, target_y
+
+    # 4. Broader download element fallback
+    dl_rect = find_uia_element(chrome_win, title_re=r"(?i).*download.*", min_x=100, min_y=120, max_y_ratio=0.85, timeout=3.0)
     if dl_rect:
         return dl_rect.mid_point().x, dl_rect.mid_point().y
 
     raise RuntimeError("Could not locate track Download button on page.")
 
 
+def locate_envato_download_target(chrome_win) -> Tuple[int, int]:
+    """
+    Finds the exact (X, Y) coordinates of the Download button on Envato Elements.
+    Uses Gemini Vision if configured, with UIA element fallback.
+    """
+    if is_vision_enabled():
+        pt = locate_element_with_gemini("the main Download or Add & Download button for this Envato item")
+        if pt:
+            return pt
+
+    # 1. Search for primary Download button in Envato
+    dl_rect = find_uia_element(
+        chrome_win,
+        title_re=r"(?i)^(Download|Download\s*now|Add\s*&\s*Download|Download\s*without\s*license|Free\s*Download|Download\s*Item)$",
+        control_types=["Button", "Hyperlink", "Custom", "Text"],
+        min_x=50,
+        min_y=100,
+        timeout=5.0
+    )
+    if dl_rect:
+        return dl_rect.mid_point().x, dl_rect.mid_point().y
+
+    # 2. Broader download match
+    dl_rect = find_uia_element(
+        chrome_win,
+        title_re=r"(?i).*download.*",
+        min_x=50,
+        min_y=100,
+        max_y_ratio=0.85,
+        timeout=3.0
+    )
+    if dl_rect:
+        return dl_rect.mid_point().x, dl_rect.mid_point().y
+
+    raise RuntimeError("Could not locate Envato Elements Download button on page.")
+
+
 def locate_stems_trigger_target(chrome_win) -> Tuple[int, int]:
     """
-    Finds the exact (X, Y) coordinates of the Stems/Versions trigger button (the 4th circular icon with music note).
+    Finds the exact (X, Y) coordinates of the Stems/Versions trigger button.
     Uses Gemini Vision if configured, with Play button anchor fallback.
     """
     # 0. Try Gemini Multimodal Vision if API Key is configured
@@ -313,16 +378,16 @@ def locate_stems_trigger_target(chrome_win) -> Tuple[int, int]:
         if pt:
             return pt
 
-    # 1. Check Play anchor (4th circular icon with music note is ~220px right of Play button edge)
-    play_rect = find_uia_element(chrome_win, title_re=r"(?i)^(Play|Play\s*track|Play\s*song|^Play.*)$", min_x=180, timeout=4.0)
+    # 1. Check Play anchor
+    play_rect = find_uia_element(chrome_win, title_re=r"(?i)^(Play|Play\s*track|Play\s*song|^Play.*)$", min_x=100, timeout=4.0)
     if play_rect:
         print(f"[OS Agent] Found 'Play' anchor button for Stems at {play_rect}")
-        target_x = play_rect.right + 220
+        target_x = play_rect.right + int(play_rect.width() * 4.5)
         target_y = play_rect.mid_point().y
         return target_x, target_y
 
-    # 2. Fallback: Search for Stems element (min_x=180)
-    stems_rect = find_uia_element(chrome_win, title_re=r"(?i).*(stems?|versions?).*", min_x=180, timeout=4.0)
+    # 2. Fallback: Search for Stems element
+    stems_rect = find_uia_element(chrome_win, title_re=r"(?i).*(stems?|versions?).*", min_x=100, timeout=4.0)
     if stems_rect:
         return stems_rect.mid_point().x, stems_rect.mid_point().y
 

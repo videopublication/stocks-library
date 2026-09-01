@@ -19,6 +19,17 @@ for stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
+# Ensure Windows Per-Monitor DPI Awareness so laptop display scaling (125%/150%) does not distort click coordinates
+if sys.platform == "win32":
+    import ctypes
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)
+    except Exception:
+        try:
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
+
 import uvicorn  # noqa: E402
 
 BASE_DIR = Path(__file__).resolve().parent
