@@ -21,6 +21,7 @@ from backend.models import (
 )
 from backend.service import (
     submit_new_job,
+    lookup_asset,
     claim_next_job_for_worker,
     complete_worker_job,
     fail_worker_job,
@@ -75,7 +76,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Setu • Creative Asset Bridge & Studio Sangraha",
+    title="Stocks Library • Studio Media Hub",
     version="2.0.0",
     description="Universal local relay and shared asset library for Artlist and Envato Elements",
     lifespan=lifespan,
@@ -103,6 +104,27 @@ def require_token(authorization: str = Header(default="")) -> None:
             detail="Missing or invalid bearer token",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def require_token_or_query(authorization: str = Header(default=""), token: str = "") -> None:
+    """
+    Same shared token, but also accepted as a query parameter.
+
+    An <audio> or <video> element fetches its own source and cannot be given an
+    Authorization header, so header-only auth makes in-browser preview
+    impossible. This route is loopback-only and the token is already present in
+    the page that builds the URL, so the query form grants nothing new.
+    """
+    expected = f"Bearer {settings.AUTH_TOKEN}"
+    if secrets.compare_digest(authorization.strip(), expected):
+        return
+    if token and secrets.compare_digest(token.strip(), settings.AUTH_TOKEN):
+        return
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Missing or invalid bearer token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def verify_loopback(request: Request) -> None:
@@ -185,8 +207,8 @@ async def download_library_file(track_id: str, variant: str = "main"):
     return FileResponse(path, filename=row["filename"], media_type="application/octet-stream")
 
 
-@app.get("/api/v1/library/stream/{track_id}", dependencies=[Depends(require_token)])
-async def stream_library_audio(track_id: str, variant: str = "main"):
+@app.get("/api/v1/library/stream/{track_id}", dependencies=[Depends(require_token_or_query)])
+async def stream_library_audio(track_id: str, variant: str = "main", token: str = ""):
     """Streams audio files (WAV, MP3, M4A, FLAC) directly to browser audio player."""
     with get_db(write=False) as conn:
         row = conn.execute(
@@ -217,7 +239,17 @@ async def stream_library_audio(track_id: str, variant: str = "main"):
     elif suffix == ".ogg":
         media_type = "audio/ogg"
 
-    return FileResponse(path, media_type=media_type)
+    return FileResponse(
+        path,
+        media_type=media_type,
+        headers={"Accept-Ranges": "bytes", "Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/api/v1/library/lookup", dependencies=[Depends(require_token)])
+async def lookup_library_asset(url: str, variant: str = "main"):
+    """Report whether a URL is already in the archive, without downloading it."""
+    return await asyncio.to_thread(lookup_asset, url, variant)
 
 
 @app.post("/api/v1/library/{track_id}/reveal", dependencies=[Depends(require_token)])

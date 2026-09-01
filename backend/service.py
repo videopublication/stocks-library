@@ -547,6 +547,76 @@ def get_status_summary() -> Dict[str, Any]:
 
 # ---------------------------------------------------------------- job intake
 
+def lookup_asset(url: str, variant: str = "main") -> Dict[str, Any]:
+    """
+    Answer "do we already have this?" without changing anything.
+
+    submit_new_job() also detects a cache hit, but only after the editor has
+    committed to the action, and it charges a hit against the counters on the
+    way through. This is the read-only version the UI calls while the editor is
+    still typing, so the answer can be shown before the click rather than after.
+    """
+    try:
+        parsed = parse_stock_url(url)
+        canonical_url = parsed["canonical_url"]
+        track_id = parsed["track_id"]
+        provider_name = parsed["provider"]
+        category = parsed["category"]
+    except Exception:
+        canonical_url = normalize_artlist_url(url)
+        track_id = parse_artlist_url(canonical_url)
+        provider_name = "artlist"
+        category = "music"
+
+    if not track_id:
+        return {"state": "invalid", "reason": "Unable to parse an asset ID from that link."}
+
+    variant = (variant or "main").lower().strip()
+    base = {
+        "state": "new",
+        "track_id": track_id,
+        "variant": variant,
+        "provider": provider_name,
+        "category": category,
+        "canonical_url": canonical_url,
+    }
+
+    with get_db(write=False) as conn:
+        track = conn.execute(
+            "SELECT * FROM tracks WHERE track_id = ? AND variant = ?",
+            (track_id, variant),
+        ).fetchone()
+
+        # An index entry whose file has been deleted is not a cache hit; the
+        # asset would have to be fetched again, so report it as new.
+        if track and Path(track["library_path"]).exists():
+            t = dict(track)
+            base.update({
+                "state": "cached",
+                "provider": t.get("provider") or provider_name,
+                "category": t.get("category") or category,
+                "filename": t.get("filename"),
+                "title": t.get("title") or t.get("filename"),
+                "file_size": t.get("file_size"),
+                "hit_count": t.get("hit_count", 0),
+                "downloaded_at": t.get("downloaded_at"),
+                "requested_by": t.get("requested_by"),
+            })
+            return base
+
+        job = conn.execute("""
+            SELECT id, status FROM jobs
+            WHERE track_id = ? AND variant = ?
+              AND status IN ('queued', 'claimed', 'downloading', 'moving')
+        """, (track_id, variant)).fetchone()
+
+        if job:
+            base.update({"state": "queued", "job_id": job["id"], "job_status": job["status"]})
+            return base
+
+    return base
+
+
 def submit_new_job(url: str, variant: str = "main", format_type: str = "WAV",
                    requested_by: str = "local_editor") -> Dict[str, Any]:
     """Submit a track or asset URL for downloading or instant cache resolution."""

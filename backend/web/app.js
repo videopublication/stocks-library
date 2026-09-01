@@ -13,10 +13,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const libraryTotalCount = document.getElementById("library-total-count");
 
   // Queue Form
-  const submitForm = document.getElementById("submit-form");
-  const trackUrlInput = document.getElementById("track-url");
+  const submitForm = document.getElementById("command-form");
+  const commandBar = submitForm;
+  const commandInput = document.getElementById("command-input");
+  const commandOptions = document.getElementById("command-options");
+  const commandIcon = document.getElementById("command-icon");
+  const commandKbd = document.getElementById("command-kbd");
   const urlDetectedBadge = document.getElementById("url-detected-badge");
-  const urlClearBtn = document.getElementById("url-clear-btn");
+  const urlClearBtn = document.getElementById("command-clear-btn");
+  const resolutionStrip = document.getElementById("resolution-strip");
+  const resolutionTitle = document.getElementById("resolution-title");
+  const resolutionDetail = document.getElementById("resolution-detail");
+  const resolutionActions = document.getElementById("resolution-actions");
+  const filterEcho = document.getElementById("filter-echo");
+  // The two verbs share one field, so both aliases point at the same element.
+  const trackUrlInput = commandInput;
+  const librarySearchInput = commandInput;
   const trackVariantSelect = document.getElementById("track-variant");
   const audioFormatSelect = document.getElementById("audio-format");
   const audioFormatGroup = document.getElementById("audio-format-group");
@@ -41,6 +53,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const dlPct = document.getElementById("dl-pct");
   const queueList = document.getElementById("queue-list");
   const recentSection = document.getElementById("recent-section");
+  const SEARCH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg>';
+  const LINK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>';
   const recentList = document.getElementById("recent-list");
   const clearRecentBtn = document.getElementById("clear-recent-btn");
 
@@ -53,8 +67,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Sangraha Library
   const libraryCount = document.getElementById("library-count");
-  const librarySearchInput = document.getElementById("library-search-input");
-  const clearSearchBtn = document.getElementById("clear-search-btn");
   const categoryFilterBar = document.getElementById("category-filter-bar");
   const libraryTbody = document.getElementById("library-tbody");
 
@@ -73,6 +85,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // State
   let currentAudio = new Audio();
+  currentAudio.preload = "metadata";
+
+  function isAudioCategory(category) {
+    return ["music", "sfx", "sound-effects", "audio"].includes(
+      String(category || "music").toLowerCase()
+    );
+  }
   let currentPlayingTrackId = null;
   let currentPlayingVariant = null;
   let currentCategory = "all";
@@ -90,6 +109,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const opts = options || {};
     opts.headers = authHeaders(opts.headers);
     return fetch(path, opts);
+  }
+
+  function escapeHtml(value) {
+    const d = document.createElement("div");
+    d.textContent = String(value == null ? "" : value);
+    return d.innerHTML;
   }
 
   function formatBytes(bytes) {
@@ -169,61 +194,234 @@ document.addEventListener("DOMContentLoaded", () => {
     return null;
   }
 
-  function updateUrlInputState() {
-    const val = trackUrlInput.value.trim();
-    if (val) {
-      urlClearBtn.classList.remove("hidden");
-    } else {
-      urlClearBtn.classList.add("hidden");
-    }
+  // --- Unified Command Controller -------------------------------------------
+  // One field, two verbs. A recognised link means "bridge this"; anything else
+  // means "search the archive". The app decides, so the editor never has to.
+  let commandMode = "search";
+  let lookupTimer = null;
+  let lookupSeq = 0;
+  let lastResolution = null;
 
-    const info = detectProvider(val);
-    if (info) {
-      urlDetectedBadge.textContent = info.badge;
-      urlDetectedBadge.className = `detected-badge ${info.cls}`;
-      urlDetectedBadge.classList.remove("hidden");
-      
-      if (!info.isAudio) {
-        if (audioFormatGroup) audioFormatGroup.style.display = "none";
-        trackVariantSelect.innerHTML = `<option value="main">Main Asset Package (ZIP)</option>`;
-      } else {
-        if (audioFormatGroup) audioFormatGroup.style.display = "block";
-        if (info.type === "music") {
-          trackVariantSelect.innerHTML = `
-            <option value="main">Main track</option>
-            <option value="stems">Multi-Track Stems (ZIP)</option>
-          `;
-        } else {
-          trackVariantSelect.innerHTML = `<option value="main">Main track</option>`;
-        }
-      }
+  function looksLikeUrl(value) {
+    if (!value) return false;
+    if (/^https?:\/\//i.test(value)) return true;
+    return /(^|\.)(artlist\.io|elements\.envato\.com|envato\.com)\//i.test(value);
+  }
+
+  function setResolution(state, title, detail, actions) {
+    resolutionStrip.className = `resolution-strip is-${state}`;
+    resolutionTitle.textContent = title;
+    resolutionDetail.textContent = detail || "";
+    resolutionActions.textContent = "";
+    (actions || []).forEach(a => resolutionActions.appendChild(a));
+  }
+
+  function hideResolution() {
+    lastResolution = null;
+    resolutionStrip.className = "resolution-strip hidden";
+    resolutionActions.textContent = "";
+  }
+
+  function ghostButton(label, iconPath, onClick) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "btn-ghost";
+    if (iconPath) {
+      b.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${iconPath}</svg>`;
+    }
+    b.appendChild(document.createTextNode(label));
+    b.addEventListener("click", onClick);
+    return b;
+  }
+
+  // Variant and quality options depend on what kind of asset the link is, so
+  // they are rebuilt rather than offering choices the provider cannot honour.
+  function applyProviderOptions(info) {
+    if (!info) return;
+    if (!info.isAudio) {
+      if (audioFormatGroup) audioFormatGroup.classList.add("hidden");
+      trackVariantSelect.innerHTML = '<option value="main">Main package (ZIP)</option>';
+      return;
+    }
+    if (audioFormatGroup) audioFormatGroup.classList.remove("hidden");
+    if (info.type === "music") {
+      trackVariantSelect.innerHTML =
+        '<option value="main">Main track</option><option value="stems">Stems (ZIP)</option>';
     } else {
-      urlDetectedBadge.classList.add("hidden");
-      if (audioFormatGroup) audioFormatGroup.style.display = "block";
-      trackVariantSelect.innerHTML = `
-        <option value="main">Main Asset / Track</option>
-        <option value="stems">Multi-Track Stems (ZIP)</option>
-      `;
+      trackVariantSelect.innerHTML = '<option value="main">Main track</option>';
     }
   }
 
-  trackUrlInput.addEventListener("input", updateUrlInputState);
-  trackUrlInput.addEventListener("paste", () => setTimeout(updateUrlInputState, 50));
+  async function runLookup() {
+    const url = commandInput.value.trim();
+    if (!looksLikeUrl(url)) return;
+
+    const seq = ++lookupSeq;
+    setResolution("checking", "Checking archive…", "");
+    resolutionStrip.classList.remove("hidden");
+
+    try {
+      const variant = trackVariantSelect.value || "main";
+      const res = await apiFetch(
+        `/api/v1/library/lookup?url=${encodeURIComponent(url)}&variant=${encodeURIComponent(variant)}`
+      );
+      if (seq !== lookupSeq) return;          // a newer keystroke already won
+      if (!res.ok) { hideResolution(); return; }
+      const data = await res.json();
+      if (seq !== lookupSeq) return;
+      renderResolution(data);
+    } catch (err) {
+      if (seq === lookupSeq) hideResolution();
+    }
+  }
+
+  function renderResolution(data) {
+    lastResolution = data;
+    const btnText = submitBtn.querySelector(".btn-text");
+
+    if (data.state === "invalid") {
+      setResolution("invalid", "Unrecognised link", data.reason || "");
+      submitBtn.disabled = true;
+      return;
+    }
+
+    submitBtn.disabled = false;
+
+    if (data.state === "cached") {
+      // Already held. Re-fetching is still allowed, but it stops being the
+      // default: the button drops out of gold and the archive copy is offered.
+      const size = data.file_size ? formatBytes(data.file_size) : "";
+      const reuse = data.hit_count ? `reused ${data.hit_count}×` : "never reused";
+      const bits = [size, reuse].filter(Boolean).join(" · ");
+      const actions = [];
+
+      const track = {
+        track_id: data.track_id,
+        variant: data.variant,
+        title: data.title || data.filename,
+        filename: data.filename,
+        provider: data.provider,
+        category: data.category,
+      };
+
+      if (isAudioCategory(data.category)) {
+        actions.push(ghostButton("Play", '<polygon points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"></polygon>', () => playAudioTrack(track)));
+      }
+      actions.push(ghostButton("Reveal", '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>', () => revealFile(track)));
+
+      setResolution("cached", "Already in Sangraha", `${shortTitle(data.title || data.filename)} · ${bits}`, actions);
+      btnText.textContent = "Download again";
+      submitBtn.classList.add("is-secondary");
+      return;
+    }
+
+    submitBtn.classList.remove("is-secondary");
+
+    if (data.state === "queued") {
+      setResolution("queued", "Already in the queue", `Status: ${data.job_status || "queued"}`);
+      btnText.textContent = "Queue again";
+      return;
+    }
+
+    const info = detectProvider(commandInput.value.trim());
+    setResolution("new", "Not in the archive", info ? `${info.badge} · will download` : "Will download");
+    btnText.textContent = "Bridge to Sangraha";
+  }
+
+  function updateUrlInputState() {
+    const raw = commandInput.value;
+    const val = raw.trim();
+
+    urlClearBtn.classList.toggle("hidden", !val);
+    if (commandKbd) commandKbd.classList.toggle("hidden", !!val);
+
+    const isUrl = looksLikeUrl(val);
+    const nextMode = isUrl ? "bridge" : "search";
+    const modeChanged = nextMode !== commandMode;
+    commandMode = nextMode;
+
+    commandBar.classList.toggle("mode-bridge", isUrl);
+    commandOptions.classList.toggle("hidden", !isUrl);
+    if (commandIcon) commandIcon.innerHTML = isUrl ? LINK_ICON : SEARCH_ICON;
+
+    const info = isUrl ? detectProvider(val) : null;
+    if (info) {
+      urlDetectedBadge.textContent = info.badge;
+      urlDetectedBadge.className = `detected-badge ${info.cls}`;
+      applyProviderOptions(info);
+    } else {
+      urlDetectedBadge.className = "detected-badge hidden";
+    }
+
+    clearTimeout(lookupTimer);
+    clearTimeout(searchTimeout);
+
+    if (isUrl) {
+      // A link is not a search term, so the archive goes back to unfiltered.
+      if (modeChanged) {
+        filterEcho.classList.add("hidden");
+        fetchLibrary("", currentCategory);
+      }
+      lookupSeq++;
+      hideResolution();
+      lookupTimer = setTimeout(runLookup, 260);
+    } else {
+      hideResolution();
+      submitBtn.classList.remove("is-secondary");
+      searchTimeout = setTimeout(() => {
+        if (val) {
+          filterEcho.textContent = `matching “${val}”`;
+          filterEcho.classList.remove("hidden");
+        } else {
+          filterEcho.classList.add("hidden");
+        }
+        fetchLibrary(val, currentCategory);
+      }, 180);
+    }
+  }
+
+  commandInput.addEventListener("input", updateUrlInputState);
+  commandInput.addEventListener("paste", () => setTimeout(updateUrlInputState, 30));
+  // Changing the package re-asks the archive: stems and main are separate rows.
+  trackVariantSelect.addEventListener("change", () => {
+    if (commandMode === "bridge") runLookup();
+  });
   urlClearBtn.addEventListener("click", () => {
-    trackUrlInput.value = "";
+    commandInput.value = "";
     updateUrlInputState();
-    trackUrlInput.focus();
+    commandInput.focus();
   });
 
   // Global Keyboard Shortcut ('/' to search)
   document.addEventListener("keydown", (e) => {
-    if (e.key === "/" && document.activeElement !== trackUrlInput && document.activeElement !== librarySearchInput) {
+    const typing = document.activeElement === commandInput ||
+                   (document.activeElement && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName));
+    if (e.key === "/" && !typing) {
       e.preventDefault();
-      librarySearchInput.focus();
+      commandInput.focus();
+      commandInput.select();
+    }
+    if (e.key === "Escape" && document.activeElement === commandInput && commandInput.value) {
+      commandInput.value = "";
+      updateUrlInputState();
     }
   });
 
   // --- Audio Player Controller ----------------------------------------------
+  function describeAudioFailure(err) {
+    const media = currentAudio.error;
+    if (media) {
+      switch (media.code) {
+        case 1: return "Preview aborted";
+        case 2: return "Network error while streaming preview";
+        case 3: return "This file could not be decoded by the browser";
+        case 4: return "Browser cannot play this format (try the MP3 variant)";
+      }
+    }
+    if (err && err.name === "NotAllowedError") return "Click play again to allow audio";
+    return "Preview unavailable";
+  }
+
   function formatPlayerTime(seconds) {
     if (isNaN(seconds) || seconds < 0) return "0:00";
     const m = Math.floor(seconds / 60);
@@ -241,6 +439,8 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll(".btn-table-play").forEach(btn => {
       const isThis = btn.dataset.trackId === currentPlayingTrackId;
       btn.classList.toggle("is-playing", isThis && isPlaying);
+      const row = btn.closest("tr");
+      if (row) row.classList.toggle("is-active-row", isThis);
       if (isThis && isPlaying) {
         btn.innerHTML = `<svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>`;
       } else {
@@ -263,7 +463,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     currentPlayingTrackId = track.track_id;
     currentPlayingVariant = track.variant || "main";
-    currentAudio.src = `/api/v1/library/stream/${encodeURIComponent(track.track_id)}?variant=${encodeURIComponent(currentPlayingVariant)}`;
+    currentAudio.src =
+      `/api/v1/library/stream/${encodeURIComponent(track.track_id)}` +
+      `?variant=${encodeURIComponent(currentPlayingVariant)}` +
+      `&token=${encodeURIComponent(TOKEN)}`;
     
     playerTitle.textContent = shortTitle(track.title) || track.filename;
     playerSub.textContent = `${(track.provider || "Artlist").toUpperCase()} • ${(track.variant || "Main").toUpperCase()}`;
@@ -273,7 +476,8 @@ document.addEventListener("DOMContentLoaded", () => {
       updatePlayerPlayIcon(true);
     }).catch(err => {
       console.error("Playback error:", err);
-      showToast("Audio stream unavailable");
+      showToast(describeAudioFailure(err));
+      updatePlayerPlayIcon(false);
     });
   }
 
@@ -318,6 +522,27 @@ document.addEventListener("DOMContentLoaded", () => {
     playerScrubber.value = 0;
     playerCurrentTime.textContent = "0:00";
   });
+
+  // Duration is known before the first timeupdate, so the scrubber is not
+  // stuck showing 0:00 while the file streams.
+  currentAudio.addEventListener("loadedmetadata", () => {
+    if (!isNaN(currentAudio.duration)) {
+      playerDuration.textContent = formatPlayerTime(currentAudio.duration);
+    }
+  });
+
+  // play() can resolve and the stream still fail afterwards, so the failure is
+  // reported from the element rather than only from the promise.
+  currentAudio.addEventListener("error", () => {
+    if (!currentAudio.src) return;
+    showToast(describeAudioFailure(null));
+    updatePlayerPlayIcon(false);
+  });
+
+  // Keeps the icon honest when playback is changed from outside the page
+  // (media keys, the OS mixer, another tab taking the audio focus).
+  currentAudio.addEventListener("play", () => updatePlayerPlayIcon(true));
+  currentAudio.addEventListener("pause", () => updatePlayerPlayIcon(false));
 
   playerScrubber.addEventListener("input", (e) => {
     if (!isNaN(currentAudio.duration)) {
@@ -391,15 +616,15 @@ document.addEventListener("DOMContentLoaded", () => {
       submitResult.appendChild(document.createElement("br"));
       const code = document.createElement("code");
       code.textContent = detail;
-      code.style.cssText = "font-size:11px; opacity:0.85; word-break:break-all;";
+      code.style.cssText = "font-size:0.6875rem; opacity:0.85; word-break:break-all;";
       submitResult.appendChild(code);
     }
 
     if (pathToCopy) {
       submitResult.appendChild(document.createElement("br"));
       const btn = document.createElement("button");
-      btn.className = "header-icon-btn";
-      btn.style.cssText = "margin-top:6px; padding:3px 8px; width:auto; font-size:11px; gap:4px;";
+      btn.className = "btn-notice-action";
+      btn.style.cssText = "margin-top:8px;";
       btn.textContent = "Copy Filepath";
       btn.addEventListener("click", () => copyPath(pathToCopy, btn));
       submitResult.appendChild(btn);
@@ -483,7 +708,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderQueued(jobs) {
     if (!jobs || jobs.length === 0) {
-      queueList.innerHTML = '<div class="empty-placeholder">No items in queue. Bridge an asset above to start.</div>';
+      queueList.innerHTML = '<div class="empty-placeholder is-inline">Nothing queued</div>';
       clock.etas.clear();
       return;
     }
@@ -541,12 +766,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function renderRecent(jobs) {
     if (!jobs || jobs.length === 0) {
-      recentSection.classList.add("hidden");
-      recentList.textContent = "";
+      recentList.innerHTML = '<div class="empty-placeholder is-inline">No transports yet</div>';
       return;
     }
 
-    recentSection.classList.remove("hidden");
     recentList.textContent = "";
 
     for (const job of jobs) {
@@ -652,11 +875,17 @@ document.addEventListener("DOMContentLoaded", () => {
       quotaText.textContent = data.daily_usage;
       const pct = Math.min(100, Math.round((data.daily_downloads / data.daily_limit) * 100));
       quotaBar.style.width = `${pct}%`;
+      quotaBar.classList.toggle("is-high", pct >= 70 && pct < 90);
+      quotaBar.classList.toggle("is-critical", pct >= 90);
       if (quotaPercent) quotaPercent.textContent = `${pct}% used`;
 
       if (todayDownloadsVal) todayDownloadsVal.textContent = data.daily_downloads;
       if (libraryTotalCount) libraryTotalCount.textContent = data.library_count || 0;
       if (queueDepthBadge) queueDepthBadge.textContent = `${data.queue_depth} queued`;
+      const activitySection = document.querySelector(".activity-section");
+      if (activitySection) {
+        activitySection.classList.toggle("is-live", (data.queue_depth || 0) > 0 || !!data.in_flight_job);
+      }
 
       if (data.chrome_download_dir && data.download_dir_ok === false) {
         dldirBanner.classList.remove("hidden");
@@ -715,11 +944,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const td = document.createElement("td");
         td.colSpan = 6;
         td.className = "table-placeholder-cell";
-        td.innerHTML = `
-          <div class="loading-state-wrap">
-            <p>${query ? 'No matching assets found in Sangraha archive.' : 'No assets in this category yet. Bridge your first item on the left!'}</p>
-          </div>
-        `;
+        // Empty because of a filter and empty because nothing was ever bridged
+        // are different problems, so they get different next steps.
+        const icon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path></svg>';
+        td.innerHTML = query
+          ? `<div class="loading-state-wrap">${icon}<strong>No match for “${escapeHtml(query)}”</strong><span>Try a different word, or clear the filter with Esc.</span></div>`
+          : `<div class="loading-state-wrap">${icon}<strong>Nothing here yet</strong><span>Paste an Artlist or Envato link in the bar above to bridge your first asset.</span></div>`;
         tr.appendChild(td);
         libraryTbody.appendChild(tr);
         return;
@@ -843,37 +1073,19 @@ document.addEventListener("DOMContentLoaded", () => {
         categoryFilterBar.querySelectorAll(".category-pill").forEach(b => b.classList.remove("active"));
         btn.classList.add("active");
         currentCategory = btn.dataset.cat;
-        fetchLibrary(librarySearchInput.value.trim(), currentCategory);
+        fetchLibrary(commandMode === "search" ? commandInput.value.trim() : "", currentCategory);
       });
     });
   }
 
-  // Search input listener
-  librarySearchInput.addEventListener("input", (e) => {
-    clearTimeout(searchTimeout);
-    const value = e.target.value.trim();
-    if (value) {
-      clearSearchBtn.style.display = "block";
-    } else {
-      clearSearchBtn.style.display = "none";
-    }
-    searchTimeout = setTimeout(() => fetchLibrary(value, currentCategory), 180);
-  });
-
-  clearSearchBtn.addEventListener("click", () => {
-    librarySearchInput.value = "";
-    clearSearchBtn.style.display = "none";
-    fetchLibrary("", currentCategory);
-  });
-
   // --- Submit New Asset Job -------------------------------------------------
   submitForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const url = trackUrlInput.value.trim();
-    if (!url) return;
+    const url = commandInput.value.trim();
+    if (!url || commandMode !== "bridge") return;
 
     submitBtn.disabled = true;
-    submitBtn.querySelector(".btn-text").textContent = "Bridging...";
+    submitBtn.querySelector(".btn-text").textContent = "Bridging…";
     submitResult.className = "result-box hidden";
 
     try {
@@ -892,7 +1104,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (res.status === 200 && data.status === "cached") {
         showResult("cached", "Instant Cache Hit — Already in Sangraha", data.filename, data.library_path);
-        trackUrlInput.value = "";
+        commandInput.value = "";
         updateUrlInputState();
         fetchLibrary("", currentCategory);
         fetchStatus();
@@ -902,7 +1114,7 @@ document.addEventListener("DOMContentLoaded", () => {
           `Queued to Setu — Queue Position #${data.queue_position}`,
           `Estimated ~${Math.round(data.estimated_wait_seconds / 60) || 1} min · Platform: ${(data.provider || "Stock").toUpperCase()}`
         );
-        trackUrlInput.value = "";
+        commandInput.value = "";
         updateUrlInputState();
         fetchStatus();
         fetchQueue();
@@ -913,15 +1125,24 @@ document.addEventListener("DOMContentLoaded", () => {
       showResult("error", "Network error: unable to connect to Setu local server.");
     } finally {
       submitBtn.disabled = false;
+      submitBtn.classList.remove("is-secondary");
       submitBtn.querySelector(".btn-text").textContent = "Bridge to Sangraha";
+      hideResolution();
     }
   });
 
-  refreshBtn.addEventListener("click", () => {
-    fetchStatus();
-    fetchQueue();
-    fetchLibrary(librarySearchInput.value.trim(), currentCategory);
-    showToast("Telemetry refreshed");
+  refreshBtn.addEventListener("click", async () => {
+    refreshBtn.classList.add("is-busy");
+    try {
+      await Promise.all([
+        fetchStatus(),
+        fetchQueue(),
+        fetchLibrary(commandMode === "search" ? commandInput.value.trim() : "", currentCategory),
+      ]);
+      showToast("Telemetry refreshed");
+    } finally {
+      refreshBtn.classList.remove("is-busy");
+    }
   });
 
   // --- Theme Controller -----------------------------------------------------

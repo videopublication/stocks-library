@@ -4,240 +4,235 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="color-scheme" content="dark light">
-  <title>Setu (सेतु) • Studio Asset Bridge</title>
-  
-  <!-- Premium Typography: Plus Jakarta Sans for UI, Outfit for Display, JetBrains Mono for Data -->
+  <title>Stocks Library • Studio Asset Hub</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
   <link rel="stylesheet" href="/static/style.css">
   <script>
     (function () {
       var saved = null;
       try { saved = localStorage.getItem('relay-theme'); } catch (e) {}
-      if (saved === 'light' || saved === 'dark') {
-        document.documentElement.setAttribute('data-theme', saved);
-      } else {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      }
+      document.documentElement.setAttribute('data-theme', saved === 'light' ? 'light' : 'dark');
     })();
   </script>
 </head>
 <body>
 
-<!-- Global Studio Header -->
 <header class="app-header">
   <div class="header-container">
-    <!-- Brand Identity -->
     <div class="brand-block">
       <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 19h16M4 15h16M4 11h16M9 11v8M15 11v8M4 7l8-4 8 4"></path>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 18h16M4 14h16M9 14v4M15 14v4M3 10l9-5 9 5"></path>
         </svg>
       </div>
       <div class="brand-meta">
-        <div class="brand-name">SETU <span class="brand-lang">सेतु</span></div>
-        <div class="brand-sub">Studio Asset Bridge</div>
+        <div class="brand-name">STOCKS LIBRARY</div>
+        <div class="brand-sub">Studio Media Archive &amp; Downloader</div>
       </div>
     </div>
 
-    <!-- Center Quick Status Bar -->
-    <div class="header-telemetry">
-      <div class="status-node" id="server-status" title="Setu Relay Engine Status">
+    <div class="header-telemetry" role="status" aria-live="polite">
+      <div class="status-node" id="server-status" title="Stocks Library server status">
         <span class="status-indicator"></span>
-        <span class="status-label">Bridge Ready</span>
+        <span class="status-label">Library Ready</span>
       </div>
-      <div class="status-divider"></div>
-      <div class="status-node" id="session-status" title="Hardware Agent Health">
+      <div class="status-node" id="session-status" title="Hardware agent health">
         <span class="status-indicator"></span>
         <span class="status-label">OS Agent Active</span>
       </div>
-      <div class="status-divider"></div>
-      <div class="quota-pill" title="Daily Downloads Used vs Safety Limit">
-        <span class="quota-title">Daily Quota</span>
-        <span class="quota-fraction mono" id="quota-text">0/20</span>
-      </div>
     </div>
 
-    <!-- Header Actions -->
     <div class="header-actions">
-      <button type="button" id="refresh-btn" class="header-icon-btn" title="Refresh Live Data (Ctrl+R)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+      <button type="button" id="refresh-btn" class="header-icon-btn" title="Refresh live data" aria-label="Refresh live data">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+          <path d="M21 3v6h-6"></path>
         </svg>
       </button>
 
       <div class="theme-switch" role="group" aria-label="Theme mode">
-        <button type="button" data-theme-choice="dark" title="Dark Obsidian Theme" class="active">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        <button type="button" data-theme-choice="dark" title="Dark theme" aria-label="Dark theme" class="active">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
         </button>
-        <button type="button" data-theme-choice="light" title="Light Theme">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <button type="button" data-theme-choice="light" title="Light theme" aria-label="Light theme">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"></circle><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path></svg>
         </button>
       </div>
     </div>
   </div>
 </header>
 
-<!-- Main Workspace Layout -->
 <main class="app-workspace">
+
+  <!-- ONE bar. Paste a link to bridge it, type words to search the archive.
+       Two inputs for two verbs was the wrong model: the editor always starts
+       from the same place, and the app decides which verb applies. -->
+  <form id="command-form" class="command-bar" novalidate>
+    <div class="command-field">
+      <span class="command-icon" id="command-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.6-3.6"></path>
+        </svg>
+      </span>
+      <input type="text" id="command-input"
+             placeholder="Search the archive, or paste an Artlist / Envato link to bridge it"
+             autocomplete="off" spellcheck="false" autofocus
+             aria-label="Search archive or paste an asset link">
+      <div class="command-trailing">
+        <span id="url-detected-badge" class="detected-badge hidden"></span>
+        <kbd class="key-hint" id="command-kbd">/</kbd>
+        <button type="button" id="command-clear-btn" class="input-clear-btn hidden" aria-label="Clear">✕</button>
+      </div>
+    </div>
+
+    <!-- Options and the commit button appear only once a link is recognised.
+         In search mode they would be noise for a verb that needs no options. -->
+    <div class="command-options hidden" id="command-options">
+      <div class="styled-select">
+        <label class="sr-only" for="track-variant">Package</label>
+        <select id="track-variant" aria-label="Package">
+          <option value="main">Main asset</option>
+          <option value="stems">Stems (ZIP)</option>
+        </select>
+      </div>
+      <div class="styled-select" id="audio-format-group">
+        <label class="sr-only" for="audio-format">Quality</label>
+        <select id="audio-format" aria-label="Quality">
+          <option value="WAV">WAV 24-bit</option>
+          <option value="MP3">MP3 320</option>
+        </select>
+      </div>
+      <button type="submit" id="submit-btn" class="btn-primary">
+        <span class="btn-text">Download to Library</span>
+        <svg class="btn-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12h14M13 6l6 6-6 6"></path>
+        </svg>
+      </button>
+    </div>
+
+    <!-- The answer to "do we already have this?" arrives here while the editor
+         is still looking at the link, not after the download has started. -->
+    <div class="resolution-strip hidden" id="resolution-strip" role="status" aria-live="polite">
+      <span class="resolution-dot"></span>
+      <div class="resolution-body">
+        <strong id="resolution-title">Checking archive…</strong>
+        <span id="resolution-detail"></span>
+      </div>
+      <div class="resolution-actions" id="resolution-actions"></div>
+    </div>
+  </form>
+
+  <div id="submit-result" class="result-box hidden" role="status" aria-live="polite"></div>
+
   <div class="workspace-grid">
 
-    <!-- Left Master Column: Bridge Intake & Automation Engine -->
-    <aside class="intake-column">
-
-      <!-- Bridge Intake Card -->
-      <section class="studio-card intake-card">
-        <div class="card-header">
-          <div class="header-title-wrap">
-            <h2 class="card-heading">Bridge Asset</h2>
-            <p class="card-caption">Paste any Artlist or Envato Elements link to queue or fetch from cache.</p>
-          </div>
-          <span class="pill-badge" id="quota-percent">0% used</span>
+    <!-- Primary object: the archive. It reads first and owns the width. -->
+    <section class="studio-card library-section">
+      <div class="card-header library-top-bar">
+        <div class="library-header-left">
+          <h2 class="card-heading">Media Library</h2>
+          <span class="item-count-chip" id="library-count">0 assets</span>
         </div>
-
-        <form id="submit-form" class="intake-form" novalidate>
-          <!-- URL Input Wrap with dynamic platform badge -->
-          <div class="form-group">
-            <div class="smart-input-container">
-              <span class="input-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
-                  <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
-                </svg>
-              </span>
-              <input type="url" id="track-url"
-                     placeholder="Paste stock asset link here..."
-                     autocomplete="off" spellcheck="false" required autofocus>
-              <div class="input-inline-actions">
-                <span id="url-detected-badge" class="detected-badge hidden"></span>
-                <button type="button" id="url-clear-btn" class="input-clear-btn hidden" aria-label="Clear Input">✕</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Adaptive Selectors -->
-          <div class="form-row-2col">
-            <div class="form-group">
-              <label class="control-label" for="track-variant">Package Version</label>
-              <div class="styled-select">
-                <select id="track-variant">
-                  <option value="main">Main Asset / Track</option>
-                  <option value="stems">Multi-Track Stems (ZIP)</option>
-                </select>
-              </div>
-            </div>
-            <div class="form-group" id="audio-format-group">
-              <label class="control-label" for="audio-format">Audio Quality</label>
-              <div class="styled-select">
-                <select id="audio-format">
-                  <option value="WAV">Lossless WAV (24-bit)</option>
-                  <option value="MP3">MP3 (320 kbps)</option>
-                </select>
-              </div>
-            </div>
-          </div>
-
-          <!-- Primary Submit CTA -->
-          <button type="submit" id="submit-btn" class="btn-primary-bridge">
-            <span class="btn-shine"></span>
-            <span class="btn-label-group">
-              <svg class="btn-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                <path d="M5 12h14M12 5l7 7-7 7"></path>
-              </svg>
-              <span class="btn-text">Bridge to Sangraha</span>
-            </span>
-            <span class="btn-keyhint">↵</span>
-          </button>
-        </form>
-
-        <div id="submit-result" class="result-box hidden"></div>
-      </section>
-
-      <!-- System Telemetry & Health Panel -->
-      <section class="studio-card stats-panel">
-        <div class="stats-header">
-          <span class="stats-panel-title">System Telemetry</span>
-          <span class="storage-info mono" id="disk-free-val">— free</span>
+        <div class="library-header-right">
+          <span class="filter-echo hidden" id="filter-echo"></span>
         </div>
+      </div>
 
-        <div class="meter-rail">
-          <div class="meter-bar" id="quota-bar" style="width: 0%"></div>
-        </div>
+      <nav class="category-nav-bar" id="category-filter-bar" aria-label="Asset category filter">
+        <button type="button" class="category-pill active" data-cat="all">All</button>
+        <button type="button" class="category-pill" data-cat="music">Music</button>
+        <button type="button" class="category-pill" data-cat="sfx">Sound Effects</button>
+        <button type="button" class="category-pill" data-cat="video-template">Video Templates</button>
+        <button type="button" class="category-pill" data-cat="stock-video">Stock Video</button>
+        <button type="button" class="category-pill" data-cat="graphic-template">Graphics &amp; 3D</button>
+      </nav>
 
-        <div class="telemetry-grid">
-          <div class="telemetry-box">
-            <div class="telemetry-number mono" id="today-downloads-val">0</div>
-            <div class="telemetry-label">Today's Downloads</div>
-          </div>
-          <div class="telemetry-box">
-            <div class="telemetry-number mono" id="cache-hits-val">0</div>
-            <div class="telemetry-label">Cache Reuses</div>
-          </div>
-          <div class="telemetry-box">
-            <div class="telemetry-number mono" id="library-total-count">0</div>
-            <div class="telemetry-label">Total Assets</div>
-          </div>
-        </div>
-      </section>
+      <div class="table-scroll-surface">
+        <table class="sangraha-table">
+          <thead>
+            <tr>
+              <th class="col-stream" aria-label="Preview"></th>
+              <th class="col-asset">Asset</th>
+              <th class="col-provider">Platform / Type</th>
+              <th class="col-size">Size</th>
+              <th class="col-reused" title="Cache hits served without re-downloading">Reused</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="library-tbody">
+            <tr>
+              <td colspan="6" class="table-placeholder-cell">
+                <div class="loading-state-wrap">
+                  <div class="studio-spinner"></div>
+                  <span>Loading archive…</span>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-    </aside>
+    <!-- Ambient column: what the machine is doing, and what it just did. -->
+    <aside class="status-rail">
 
-    <!-- Right Content Column: Live Pipeline Activity & Sangraha Media Library -->
-    <main class="content-column">
-
-      <!-- Chrome Path Alert -->
       <div id="dldir-banner" class="studio-notice notice-warn hidden">
-        <div class="notice-icon">⚠️</div>
+        <div class="notice-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 9v4M12 17h.01"></path>
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+          </svg>
+        </div>
         <div class="notice-text">
-          <strong>Chrome Download Destination Mismatch</strong>
+          <strong>Chrome download path mismatch</strong>
           <span id="dldir-detail"></span>
-          <div class="notice-sub">Open <code>chrome://settings/downloads</code>, set destination to staging path, and disable "Ask where to save each file".</div>
+          <div class="notice-sub">Set the destination in <code>chrome://settings/downloads</code> to the staging path and turn off “Ask where to save each file”.</div>
         </div>
       </div>
 
-      <!-- Circuit Breaker Alert -->
       <div id="paused-banner" class="studio-notice notice-danger hidden">
-        <div class="notice-icon">🛑</div>
-        <div class="notice-text">
-          <strong>Queue Paused by Circuit Breaker</strong>
-          <span id="paused-reason">Consecutive network or locator anomalies detected.</span>
+        <div class="notice-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"></circle><path d="M10 9v6M14 9v6"></path>
+          </svg>
         </div>
-        <button type="button" id="resume-btn" class="btn-notice-action">Resume Queue</button>
+        <div class="notice-text">
+          <strong>Queue paused</strong>
+          <span id="paused-reason">Consecutive failures detected.</span>
+        </div>
+        <button type="button" id="resume-btn" class="btn-notice-action">Resume</button>
       </div>
 
-      <!-- Live Automation & In-Flight Pipeline Card -->
       <section class="studio-card activity-section">
         <div class="card-header activity-header">
           <div class="header-title-wrap">
-            <div class="pulse-indicator-node">
-              <span class="pulse-dot"></span>
-            </div>
-            <h2 class="card-heading">Automation Pipeline</h2>
+            <div class="pulse-indicator-node"><span class="pulse-dot"></span></div>
+            <h2 class="card-heading">Pipeline</h2>
           </div>
-          <div class="queue-count-pill mono" id="queue-depth-badge">0 queued</div>
+          <div class="queue-count-pill" id="queue-depth-badge">0 queued</div>
         </div>
 
-        <!-- Natural Cooldown Pacing Banner -->
         <div id="cooldown-banner" class="cooldown-banner hidden">
-          <div class="cooldown-timer mono" id="cooldown-seconds">0</div>
+          <div class="cooldown-timer" id="cooldown-seconds">0</div>
           <div class="cooldown-copy">
-            <strong>Human Pacing Active</strong>
-            <p>Waiting before triggering the next stock platform request to ensure session longevity.</p>
+            <strong>Pacing</strong>
+            <p>Holding before the next platform request.</p>
           </div>
         </div>
 
-        <!-- In-Flight Active Job Container -->
         <div id="in-flight-container" class="in-flight-card hidden">
           <div class="in-flight-top">
             <div class="in-flight-ident">
               <span class="status-orb-active"></span>
-              <div class="in-flight-title" id="in-flight-title">Executing Stock Automation...</div>
-              <span class="pill-tag variant-pill" id="in-flight-variant">MAIN</span>
+              <div class="in-flight-title" id="in-flight-title">Working…</div>
+              <span class="pill-tag" id="in-flight-variant">MAIN</span>
             </div>
             <div class="in-flight-meta">
-              <div class="in-flight-stopwatch mono">
+              <div class="in-flight-stopwatch">
                 <span id="in-flight-elapsed">0:00</span>
                 <span class="time-divider">/</span>
                 <span class="time-limit" id="in-flight-timeout">3:00</span>
@@ -246,136 +241,105 @@
             </div>
           </div>
 
-          <!-- Stepper Track -->
           <div class="pipeline-stepper" id="phase-track"></div>
-          <div class="pipeline-phase-text mono" id="in-flight-phase">Initializing...</div>
+          <div class="pipeline-phase-text" id="in-flight-phase" role="status" aria-live="polite">Initializing…</div>
 
-          <!-- Live Download Meter -->
           <div class="stream-progress-box hidden" id="dl-progress">
-            <div class="stream-meter">
-              <div class="stream-bar" id="dl-bar"></div>
-            </div>
-            <div class="stream-stats mono">
+            <div class="stream-meter"><div class="stream-bar" id="dl-bar"></div></div>
+            <div class="stream-stats">
               <span id="dl-text">0 MB</span>
               <span id="dl-pct">0%</span>
             </div>
           </div>
         </div>
 
-        <!-- FIFO Queued Items List -->
         <div id="queue-list" class="queue-items-flow">
-          <div class="empty-placeholder">No items in queue. Bridge an asset above to start.</div>
-        </div>
-
-        <!-- Recent Completed / Collapsed History -->
-        <div id="recent-section" class="recent-history-box hidden">
-          <div class="history-header">
-            <span class="history-title">Recent Transports</span>
-            <button type="button" id="clear-recent-btn" class="btn-text-ghost">Clear Log</button>
-          </div>
-          <div id="recent-list" class="recent-list-flow"></div>
+          <div class="empty-placeholder is-inline">Nothing queued</div>
         </div>
       </section>
 
-      <!-- Sangraha Media Archive (Library) -->
-      <section class="studio-card library-section">
-        <div class="card-header library-top-bar">
-          <div class="library-header-left">
-            <h2 class="card-heading">Sangraha Media Archive</h2>
-            <span class="item-count-chip mono" id="library-count">0 items</span>
-          </div>
-
-          <!-- Quick Search Filter -->
-          <div class="library-search-wrapper">
-            <svg class="search-lens" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="11" cy="11" r="8"></circle>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <input type="search" id="library-search-input" placeholder="Search archive (Press /)..." autocomplete="off">
-            <button type="button" id="clear-search-btn" class="search-reset-btn" aria-label="Clear Search">✕</button>
-          </div>
+      <section class="studio-card" id="recent-section">
+        <div class="card-header">
+          <h2 class="card-heading">Recent Transports</h2>
+          <button type="button" id="clear-recent-btn" class="btn-text-ghost">Clear</button>
         </div>
-
-        <!-- Category Filter Pills -->
-        <nav class="category-nav-bar" id="category-filter-bar">
-          <button type="button" class="category-pill active" data-cat="all">All Assets</button>
-          <button type="button" class="category-pill" data-cat="music">Music</button>
-          <button type="button" class="category-pill" data-cat="sfx">Sound Effects</button>
-          <button type="button" class="category-pill" data-cat="video-template">Video Templates</button>
-          <button type="button" class="category-pill" data-cat="stock-video">Stock Video</button>
-          <button type="button" class="category-pill" data-cat="graphic-template">Graphics & 3D</button>
-        </nav>
-
-        <!-- Media Assets Table View -->
-        <div class="table-scroll-surface">
-          <table class="sangraha-table">
-            <thead>
-              <tr>
-                <th class="col-stream"></th>
-                <th class="col-asset">Asset</th>
-                <th class="col-provider">Platform / Type</th>
-                <th class="col-size">Size</th>
-                <th class="col-reused" title="Cache hit count without redownloading">Reused</th>
-                <th class="col-actions">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="library-tbody">
-              <tr>
-                <td colspan="6" class="table-placeholder-cell">
-                  <div class="loading-state-wrap">
-                    <div class="studio-spinner"></div>
-                    <span>Loading Sangraha media archive...</span>
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div id="recent-list" class="recent-list-flow">
+          <div class="empty-placeholder is-inline">No transports yet</div>
         </div>
       </section>
 
-    </main>
+      <section class="studio-card stats-panel">
+        <div class="stats-header">
+          <span class="stats-panel-title">Telemetry</span>
+          <span class="storage-info mono" id="disk-free-val">—</span>
+        </div>
+
+        <div class="quota-row">
+          <span class="quota-title">Daily quota</span>
+          <span class="quota-readout">
+            <span class="quota-fraction mono" id="quota-text">0/20</span>
+            <span class="pill-badge" id="quota-percent">0%</span>
+          </span>
+        </div>
+
+        <div class="meter-rail" role="progressbar" aria-labelledby="quota-text">
+          <div class="meter-bar" id="quota-bar" style="width: 0%"></div>
+        </div>
+
+        <div class="telemetry-grid">
+          <div class="telemetry-box">
+            <div class="telemetry-number mono" id="today-downloads-val">0</div>
+            <div class="telemetry-label">Today</div>
+          </div>
+          <div class="telemetry-box">
+            <div class="telemetry-number mono" id="cache-hits-val">0</div>
+            <div class="telemetry-label">Reused</div>
+          </div>
+          <div class="telemetry-box">
+            <div class="telemetry-number mono" id="library-total-count">0</div>
+            <div class="telemetry-label">Assets</div>
+          </div>
+        </div>
+      </section>
+
+    </aside>
   </div>
 </main>
 
-<!-- Floating Studio Audio Player Bar -->
 <div id="audio-player-bar" class="studio-audio-player hidden">
   <div class="player-container">
-    <!-- Track Identity -->
     <div class="player-track-info">
-      <button type="button" id="player-play-btn" class="player-toggle-btn" aria-label="Play / Pause Audio">
-        <svg id="player-play-icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+      <button type="button" id="player-play-btn" class="player-toggle-btn" aria-label="Play or pause preview">
+        <svg id="player-play-icon" viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 4 20 12 6 20 6 4"></polygon></svg>
       </button>
       <div class="player-text-group">
-        <div id="player-title" class="player-track-title">Track Title</div>
-        <div id="player-sub" class="player-track-sub">Preview Stream</div>
+        <div id="player-title" class="player-track-title">Track title</div>
+        <div id="player-sub" class="player-track-sub">Preview stream</div>
       </div>
     </div>
 
-    <!-- Scrubber & Timecodes -->
     <div class="player-scrubber-group">
-      <span id="player-current-time" class="time-label mono">0:00</span>
+      <span id="player-current-time" class="time-label">0:00</span>
       <div class="range-wrap">
-        <input type="range" id="player-scrubber" class="studio-slider" value="0" min="0" max="100" step="0.1">
+        <input type="range" id="player-scrubber" class="studio-slider" value="0" min="0" max="100" step="0.1" aria-label="Seek">
       </div>
-      <span id="player-duration" class="time-label mono">0:00</span>
+      <span id="player-duration" class="time-label">0:00</span>
     </div>
 
-    <!-- Volume & Close Controls -->
     <div class="player-right-controls">
       <div class="volume-control-wrap">
-        <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+        <svg class="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M11 5 6 9H2v6h4l5 4V5z"></path>
           <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
         </svg>
-        <input type="range" id="player-volume" class="volume-slider" value="100" min="0" max="100">
+        <input type="range" id="player-volume" class="volume-slider" value="100" min="0" max="100" aria-label="Volume">
       </div>
-      <button type="button" id="player-close-btn" class="player-dismiss-btn" title="Close Preview">✕</button>
+      <button type="button" id="player-close-btn" class="player-dismiss-btn" title="Close preview" aria-label="Close preview">✕</button>
     </div>
   </div>
 </div>
 
-<!-- Floating Toast Container -->
-<div id="toast-box" class="toast-stack"></div>
+<div id="toast-box" class="toast-stack" role="status" aria-live="polite"></div>
 
 <script src="/static/app.js"></script>
 </body>
