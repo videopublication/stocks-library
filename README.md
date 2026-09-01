@@ -1,82 +1,173 @@
-# 🌉 Setu (सेतु) • Creative Asset Bridge & Studio Sangraha
+# 🏛️ Stocks Library • Studio Media Archive & Automated Asset Bridge
 
-A high-performance, automated stock media bridge and shared asset library for **Artlist** and **Envato Elements**. Designed to eliminate manual download bottlenecks, build a permanent studio media archive (*Sangraha*), and operate securely with zero credential sharing and authentic human-mimicry behavioral automation.
+**Stocks Library** is a high-performance, automated stock media bridge and shared asset library for **Artlist** and **Envato Elements**. 
+
+It eliminates manual download bottlenecks for video editing teams, builds a permanent studio media archive, and operates with **zero credential sharing** using native OS hardware-level automation.
 
 ---
 
-## 🌟 Key Architecture
+## 🌟 Key Features
 
-* **🤖 Native OS-Level Automation Agent:**
+* **🤖 Native OS Hardware Automation:**
   * Uses real Windows operating system hardware input (`isTrusted: true`) and UIAutomation (UIA).
   * Requires **no Chrome extension, no developer mode, and no browser modifications**.
 * **⚡ Instant Deduplication Cache (<50ms, 0 Quota):**
-  * Once an asset is downloaded, subsequent requests return the existing file path instantly with **zero quota spent**.
-* **📦 Full Format & Provider Support:**
-  * Master Lossless WAV music tracks.
-  * Sound Effects (SFX) with 1-click automatic capture.
-  * Multi-Track Stems (`.ZIP` archives) with automated modal navigation.
-  * Support for Artlist and Envato Elements.
+  * When an asset is already in the library, requests return the existing file path instantly with **zero quota spent**.
+* **📦 Multi-Stock Platform & Format Support:**
+  * **Artlist**: Lossless WAV Music, SFX, and Multi-track Stems (`.ZIP`).
+  * **Envato Elements**: Video Templates (Premiere Pro, After Effects, DaVinci Resolve), Stock Footage, Graphics & 3D, and Audio FX.
 * **🔒 Two-Stage Atomic Verification:**
   * Downloads to an isolated staging directory (`staging/`).
-  * Verifies RIFF/WAVE or PKZip headers before atomically moving files into the shared studio library (`library/`).
-* **📊 Modern Web Dashboard:**
-  * Clean dark-mode library explorer with live search.
-  * Real-time queue telemetry and daily safety quota tracking.
+  * Validates binary headers (RIFF/WAVE or PKZip) before atomically moving verified files into the shared studio library (`library/`).
+* **📊 Professional Studio Dashboard:**
+  * Clean dark-mode media explorer with instant search (`/` shortcut).
+  * Direct 1-click **Copy Local Path** for Premiere Pro / DaVinci Resolve import.
+  * In-browser audio streaming player with waveform controls.
+  * Real-time pipeline tracking and daily safety quota monitoring.
 
 ---
 
-## 🚀 Quickstart Guide
+## 💻 Dedicated Backend Host Laptop Setup Guide
 
-### Running the Relay Host (Standalone Native OS Agent)
+Follow these steps to set up this machine as the dedicated backend download host.
 
-The service runs locally on a designated workstation with an active stock subscription:
+### Step 1: System Requirements & Prerequisites
+1. **Operating System**: Windows 10 / 11 (64-bit).
+2. **Python**: Python 3.10, 3.11, or 3.12 ([Download from python.org](https://www.python.org/downloads/)).
+   * *Make sure to check "Add Python to PATH" during installation.*
+3. **Google Chrome**: Installed and logged in with your active **Artlist** and **Envato Elements** subscriptions.
+4. **Git**: Installed ([Download from git-scm.com](https://git-scm.com/)).
+
+---
+
+### Step 2: Clone the Repository
+Open PowerShell or Command Prompt on the backend laptop and run:
 
 ```bash
-# 1. Install dependencies
-pip install fastapi uvicorn pydantic pyautogui pywinauto
+git clone https://github.com/videopublication/stocks-library.git
+cd stocks-library
+```
 
-# 2. Start Relay with Native OS Automation Agent
+---
+
+### Step 3: Install Python Dependencies
+Create a virtual environment and install the required packages:
+
+```bash
+# Create virtual environment (optional but recommended)
+python -m venv venv
+venv\Scripts\activate
+
+# Install dependencies
+pip install fastapi uvicorn pydantic pyautogui pywinauto pywin32 requests
+```
+
+---
+
+### Step 4: Configure Chrome Download Settings (One-Time)
+To ensure automated atomic file delivery works smoothly:
+1. Open Google Chrome on the host laptop.
+2. Go to `chrome://settings/downloads`.
+3. Set the **Location** to your `staging` folder:
+   * Example: `C:\Users\<Username>\stocks-library\staging`
+4. **Turn OFF** the toggle for: *"Ask where to save each file before downloading"*.
+5. Log into your **Artlist** and **Envato Elements** accounts in this Chrome browser.
+
+---
+
+### Step 5: Start the Stocks Library Backend Service
+Run the relay with the native OS Automation Agent:
+
+```bash
 python run_relay.py --os-agent
 ```
 
-* **Dashboard URL:** `http://127.0.0.1:5000` (or `http://<HOST_IP>:5000` across the local office network).
-* **Usage:** Paste any track or SFX link into the dashboard. The agent will bring Chrome into focus, navigate to the asset, click download with organic human-like mouse trajectories, verify the file, and place it directly into `library/`!
+You will see:
+```text
+======================================================================
+ STOCKS LIBRARY • STUDIO MEDIA ARCHIVE & DOWNLOAD RELAY
+======================================================================
+ Staging directory : C:\Users\<Username>\stocks-library\staging
+ Library directory : C:\Users\<Username>\stocks-library\library
+ Database          : C:\Users\<Username>\stocks-library\artlist_relay.db
+ Daily safe limit  : 20 downloads/day
+ Bind address      : 127.0.0.1:5000
+ OS-Agent Mode     : ENABLED (Hardware OS Input)
+======================================================================
+ Dashboard         : http://127.0.0.1:5000/
+======================================================================
+```
 
 ---
 
-## 📁 Directory Structure
+## 🌐 Allowing Other Studio Editors to Access Over Local Network (LAN)
+
+If editors want to access the **Stocks Library** web dashboard from their own editing workstations:
+
+1. In `backend/config.py`, change `HOST = "127.0.0.1"` to:
+   ```python
+   HOST = "0.0.0.0"
+   ```
+2. Find the local IP address of the host laptop (e.g. `192.168.1.150` via `ipconfig`).
+3. Add a Windows Firewall rule to allow incoming TCP traffic on port `5000`:
+   ```powershell
+   netsh advfirewall firewall add rule name="Stocks Library" dir=in action=allow protocol=TCP localport=5000
+   ```
+4. Other editors on the studio Wi-Fi/LAN can now open:
+   ```
+   http://192.168.1.150:5000/
+   ```
+   They can paste stock links directly from their laptops, and the host machine will automatically perform the download and save it to the shared archive!
+
+---
+
+## 📁 Repository Structure
 
 ```
-Artlist/
+stocks-library/
 ├── backend/
-│   ├── os_agent.py         # Native OS-Level Automation Engine (UIA + Hardware Input)
-│   ├── vision.py           # Gemini Multimodal Vision UI Grounding Engine
-│   ├── service.py          # Atomic file delivery, RIFF/ZIP checks, & deduplication cache
+│   ├── os_agent.py         # Native OS Automation Engine (UIA + Hardware Input)
+│   ├── vision.py           # Gemini Multimodal Vision UI Grounding Fallback
+│   ├── service.py          # Atomic delivery, RIFF/ZIP checks, & dedup cache
 │   ├── database.py         # SQLite WAL schema & connection management
 │   ├── config.py           # Configuration (Paths, Safe Quotas, Working Hours)
 │   ├── models.py           # Pydantic schemas & telemetry models
 │   ├── main.py             # FastAPI REST endpoints
 │   ├── reset_queue.py      # Circuit breaker & maintenance reset script
-│   └── web/                # Local Web Dashboard UI
+│   ├── providers/          # Multi-Stock provider engine
+│   │   ├── base.py
+│   │   ├── artlist.py
+│   │   └── envato.py
+│   └── web/                # High-Ergonomics Studio Web Dashboard
 │       ├── index.html
 │       ├── style.css
 │       └── app.js
 ├── staging/                # Temporary download directory (watched by Agent)
 ├── library/                # Shared Media Library (synced to Drive/NAS)
-├── IT_Approval_Request_and_Security_Brief.md # Official IT Security Document
 ├── run_relay.py            # Startup runner (python run_relay.py --os-agent)
-└── test_relay.py           # Automated unit & integration test suite (15/15 tests)
+└── test_relay.py           # Test suite (41/41 passing unit & regression tests)
 ```
 
 ---
 
-## ⚙️ Configuration Options (`backend/config.py`)
+## 🧪 Testing & Verification
 
-| Setting | Default | Description |
+To verify that all components, deduplication caches, and provider parsers are working properly:
+
+```bash
+python -m unittest test_relay.py -v
+```
+
+All 41 unit tests should pass with `OK`.
+
+---
+
+## 🛡️ IT & Safety Parameters (`backend/config.py`)
+
+| Parameter | Default | Purpose |
 | :--- | :--- | :--- |
-| `DAILY_SAFETY_LIMIT` | `20` | Daily download ceiling to guarantee fair-use safety (Artlist limit is ~40). |
-| `COOLDOWN_MIN_SECONDS` | `45` | Minimum randomized human delay between jobs. |
-| `COOLDOWN_MAX_SECONDS` | `90` | Maximum randomized human delay between jobs. |
-| `WORKING_HOURS_ENABLED` | `False` | When True, restricts worker processing to active studio hours. |
-| `WORKING_HOURS_START` | `09:00` | Start of active working hours window. |
-| `WORKING_HOURS_END` | `21:00` | End of active working hours window. |
+| `DAILY_SAFETY_LIMIT` | `20` | Daily download ceiling to protect account standing. |
+| `COOLDOWN_MIN_SECONDS`| `45` | Minimum randomized delay between consecutive automated downloads. |
+| `COOLDOWN_MAX_SECONDS`| `90` | Maximum randomized delay between consecutive automated downloads. |
+| `CONSECUTIVE_FAILURES_LIMIT` | `3` | Circuit breaker trips and pauses queue if 3 failures occur in a row. |
+| `WORKING_HOURS_ENABLED` | `False` | Optional schedule restricting downloads to business hours. |

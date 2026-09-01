@@ -36,3 +36,7 @@ $RECYCLE.BIN/
 .idea/
 *.swp
 *.swo
+
+# Backup and archives
+*.bak
+*.zip
