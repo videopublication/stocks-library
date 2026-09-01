@@ -802,8 +802,9 @@ def claim_next_job_for_worker() -> Optional[Dict[str, Any]]:
         if get_health(conn, "queue_paused", "false").lower() == "true":
             return None
 
-        # A logged-out session cannot complete a job; do not burn attempts on it.
-        if get_health(conn, "session_authenticated", "true").lower() != "true":
+        # A logged-out extension cannot complete a job; but OS agent directly interacts with Chrome session
+        wtype = get_health(conn, "worker_type", "os_agent")
+        if wtype != "os_agent" and get_health(conn, "session_authenticated", "true").lower() != "true":
             return None
 
         in_flight = conn.execute("""

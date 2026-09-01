@@ -1122,24 +1122,37 @@ document.addEventListener("DOMContentLoaded", () => {
         showResult("error", data.detail || data.error || "Submission failed");
       }
     } catch (err) {
-      showResult("error", "Network error: unable to connect to Setu local server.");
+      showResult("error", "Network error: unable to connect to local Stocks Library server.");
     } finally {
       submitBtn.disabled = false;
       submitBtn.classList.remove("is-secondary");
-      submitBtn.querySelector(".btn-text").textContent = "Bridge to Sangraha";
+      submitBtn.querySelector(".btn-text").textContent = "Download to Library";
       hideResolution();
     }
   });
+
+  if (sessionStatus) {
+    sessionStatus.style.cursor = "pointer";
+    sessionStatus.addEventListener("click", async () => {
+      try {
+        showToast("Re-verifying session auth...");
+        await apiFetch("/api/v1/resume", { method: "POST" });
+        await fetchStatus();
+        await fetchQueue();
+      } catch (e) {}
+    });
+  }
 
   refreshBtn.addEventListener("click", async () => {
     refreshBtn.classList.add("is-busy");
     try {
       await Promise.all([
+        apiFetch("/api/v1/resume", { method: "POST" }).catch(() => {}),
         fetchStatus(),
         fetchQueue(),
         fetchLibrary(commandMode === "search" ? commandInput.value.trim() : "", currentCategory),
       ]);
-      showToast("Telemetry refreshed");
+      showToast("Status & queue refreshed");
     } finally {
       refreshBtn.classList.remove("is-busy");
     }

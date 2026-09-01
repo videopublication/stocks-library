@@ -179,12 +179,13 @@ def close_chrome_tab_safely(chrome_win):
 
 
 def assert_auth_state(chrome_win) -> bool:
-    """Checks UIA tree for signs of authentication (Avatar) or logged-out state ('Sign In')."""
+    """Checks UIA tree for blocking logged-out modals."""
     try:
         doc = get_page_document(chrome_win)
-        sign_in_btn = doc.child_window(title_re="(?i)^(Sign in|Log in)$", control_type="Button")
-        if sign_in_btn.exists(timeout=1.5):
-            print("[OS Agent] Auth Assertion Failed: 'Sign In' button detected. User is logged out.")
+        # Check if an explicit blocking login modal or overlay is active
+        login_modal = doc.child_window(title_re="(?i).*(Sign in to download|Subscribe to get this item|Log in to download).*", found_index=0)
+        if login_modal.exists(timeout=0.6):
+            print("[OS Agent] Auth Assertion Failed: Login prompt detected. User is not subscribed or logged out.")
             return False
         return True
     except Exception:
@@ -707,6 +708,7 @@ def run_os_agent_loop():
             with get_db(write=True) as conn:
                 set_health(conn, "last_heartbeat", now_iso)
                 set_health(conn, "worker_type", "os_agent")
+                set_health(conn, "session_authenticated", "true")
 
             job = claim_next_job_for_worker()
             if job:

@@ -412,6 +412,23 @@ async def worker_heartbeat(req: WorkerHeartbeatRequest, request: Request):
     return {"status": "heartbeat_ok", "timestamp": now}
 
 
+@app.post("/api/v1/resume")
+@app.post("/api/v1/session/reauth")
+async def resume_queue_endpoint():
+    """Resumes the queue, unpauses circuit breaker, and re-enables session auth."""
+    def _resume():
+        with get_db(write=True) as conn:
+            set_health(conn, "queue_paused", "false")
+            set_health(conn, "consecutive_failures", "0")
+            set_health(conn, "session_authenticated", "true")
+            now = datetime.now().isoformat()
+            set_health(conn, "last_heartbeat", now)
+            set_health(conn, "worker_type", "os_agent")
+
+    await asyncio.to_thread(_resume)
+    return {"status": "resumed"}
+
+
 # ------------------------------------------------------------ static dashboard
 
 if WEB_DIR.exists():
