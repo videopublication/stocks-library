@@ -21,8 +21,11 @@ library/
 # Environment and secrets
 .env
 .env.local
+.relay_token
+*.token
 *.key
 *.pem
+*.crt
 
 # OS generated files
 Thumbs.db

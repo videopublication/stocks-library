@@ -19,7 +19,7 @@ for stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
-# Ensure Windows Per-Monitor DPI Awareness so laptop display scaling (125%/150%) does not distort click coordinates
+# Ensure Windows Per-Monitor DPI Awareness & Stay-Awake Execution State
 if sys.platform == "win32":
     import ctypes
     try:
@@ -30,12 +30,18 @@ if sys.platform == "win32":
         except Exception:
             pass
 
+    try:
+        # ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED
+        ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001 | 0x00000002)
+    except Exception:
+        pass
+
 import uvicorn  # noqa: E402
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BASE_DIR))
 
-from backend.config import settings  # noqa: E402
+from backend.config import settings, get_all_lan_ips  # noqa: E402
 
 
 def start_os_agent_thread():
@@ -48,6 +54,14 @@ def start_os_agent_thread():
 
 def main():
     enable_os_agent = "--os-agent" in sys.argv or "--agent" in sys.argv
+    enable_ssl = "--ssl" in sys.argv or "--https" in sys.argv
+
+    cert_file, key_file = None, None
+    protocol = "http"
+    if enable_ssl:
+        from backend.ssl_manager import ensure_ssl_certificates
+        cert_file, key_file, _ = ensure_ssl_certificates(host=settings.HOST)
+        protocol = "https"
 
     bar = "=" * 70
     print(bar)
@@ -59,10 +73,13 @@ def main():
     print(f" Daily safe limit  : {settings.DAILY_SAFETY_LIMIT} downloads/day")
     print(f" Working hours     : {settings.WORKING_HOURS_START} - {settings.WORKING_HOURS_END} "
           f"(enforced: {settings.WORKING_HOURS_ENABLED})")
-    print(f" Bind address      : {settings.HOST}:{settings.PORT}")
+    print(f" Bind address      : 0.0.0.0:{settings.PORT} (All Interfaces)")
     print(f" OS-Agent Mode     : {'ENABLED (Hardware OS Input)' if enable_os_agent else 'DISABLED (Use Extension)'}")
+    print(f" Security Mode     : {'HTTPS / TLS (Encrypted Secure Context)' if enable_ssl else 'HTTP'}")
     print(bar)
-    print(f" Dashboard         : http://127.0.0.1:{settings.PORT}/")
+    print(f" Dashboard (Local) : {protocol}://localhost:{settings.PORT}/")
+    for lan_ip in get_all_lan_ips():
+        print(f" Dashboard (LAN/Wi-Fi): {protocol}://{lan_ip}:{settings.PORT}/")
     if not enable_os_agent:
         print(f" Extension path    : {BASE_DIR / 'extension'}")
     print(bar)
@@ -77,13 +94,18 @@ def main():
 
     print("\n[INFO] Starting server...\n")
 
-    uvicorn.run(
-        "backend.main:app",
-        host=settings.HOST,
-        port=settings.PORT,
-        reload=False,
-        log_level="info",
-    )
+    uvicorn_kwargs = {
+        "app": "backend.main:app",
+        "host": "0.0.0.0",
+        "port": settings.PORT,
+        "reload": False,
+        "log_level": "info",
+    }
+    if enable_ssl and cert_file and key_file:
+        uvicorn_kwargs["ssl_certfile"] = str(cert_file)
+        uvicorn_kwargs["ssl_keyfile"] = str(key_file)
+
+    uvicorn.run(**uvicorn_kwargs)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ strict rect bounds validation, phase heartbeats, and hardware mouse input.
 """
 
 import os
+import re
 import sys
 import time
 import random
@@ -72,6 +73,36 @@ def is_extension_active() -> bool:
 
 # ------------------------------------------------------------- Window & UIA Management
 
+def ensure_default_desktop():
+    """Ensure current thread is attached to the interactive 'Default' desktop on Windows."""
+    if sys.platform == "win32":
+        import ctypes
+        try:
+            user32 = ctypes.windll.user32
+            DESKTOP_ALL_ACCESS = 0x01FF
+            hdesk = user32.OpenDesktopW("Default", 0, False, DESKTOP_ALL_ACCESS)
+            if hdesk:
+                user32.SetThreadDesktop(hdesk)
+        except Exception as e:
+            pass
+
+
+def is_real_chrome_window(hwnd: int) -> bool:
+    """Verifies that the HWND belongs to a real Google Chrome (chrome.exe) process and not an Electron app."""
+    if not hwnd or not win32gui.IsWindow(hwnd):
+        return False
+    try:
+        import win32process, win32api, win32con
+        _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        hproc = win32api.OpenProcess(win32con.PROCESS_QUERY_INFORMATION | win32con.PROCESS_VM_READ, False, pid)
+        exe_path = win32process.GetModuleFileNameEx(hproc, 0).lower()
+        win32api.CloseHandle(hproc)
+        return "chrome.exe" in exe_path and not any(k in exe_path for k in ("antigravity", "code.exe", "electron", "slack", "discord", "cursor"))
+    except Exception:
+        title = win32gui.GetWindowText(hwnd).lower()
+        return "google chrome" in title and not any(k in title for k in ("antigravity", "visual studio", "cursor"))
+
+
 def find_chrome_executable() -> str:
     """Finds the absolute path to Chrome executable on Windows."""
     candidates = [
@@ -87,63 +118,167 @@ def find_chrome_executable() -> str:
     return "chrome"
 
 
-def open_url_in_chrome(url: str, timeout: float = 15.0):
-    """Directly opens target URL in Chrome and reliably attaches to the window."""
-    chrome_exe = find_chrome_executable()
-    print(f"[OS Agent] Navigating to: {url} via {chrome_exe}")
+def force_bring_to_foreground(hwnd: int) -> bool:
+    """
+    Guarantees bringing the Chrome window to the absolute foreground,
+    even when another application (Premiere Pro, DaVinci Resolve, Explorer, etc.)
+    is currently active and focused on screen.
+    Bypasses Windows LockSetForegroundWindow restrictions.
+    """
+    if not hwnd or not win32gui.IsWindow(hwnd):
+        return False
+
+    ensure_default_desktop()
 
     try:
-        subprocess.Popen([chrome_exe, "--force-renderer-accessibility", url])
-    except Exception as e:
-        print(f"[OS Agent] Direct launch error: {e}, falling back to shell start...")
-        os.system(f'start "" "{chrome_exe}" --force-renderer-accessibility "{url}"')
+        # 1. Un-minimize if window is minimized (iconic)
+        if win32gui.IsIconic(hwnd):
+            win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+            time.sleep(0.15)
 
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+        # 2. Try standard BringWindowToTop and SetForegroundWindow
+        win32gui.BringWindowToTop(hwnd)
         try:
-            # 1. Check current foreground window first
-            fg_hwnd = win32gui.GetForegroundWindow()
-            if fg_hwnd:
-                fg_title = win32gui.GetWindowText(fg_hwnd)
-                fg_class = win32gui.GetClassName(fg_hwnd)
-                if "chrome" in fg_class.lower() or "chrome" in fg_title.lower() or "artlist" in fg_title.lower():
+            win32gui.SetForegroundWindow(hwnd)
+        except Exception:
+            pass
+
+        time.sleep(0.1)
+        if win32gui.GetForegroundWindow() == hwnd:
+            win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+            return True
+
+        # 3. Windows Foreground Lockout Bypass:
+        # If another application currently holds foreground focus, Windows prevents background
+        # apps from stealing focus unless thread input queues are attached or an Alt-key event occurs.
+        foreground_hwnd = win32gui.GetForegroundWindow()
+        if foreground_hwnd and foreground_hwnd != hwnd:
+            import win32process, win32api, ctypes
+            cur_thread = win32api.GetCurrentThreadId()
+            fg_thread, _ = win32process.GetWindowThreadProcessId(foreground_hwnd)
+            target_thread, _ = win32process.GetWindowThreadProcessId(hwnd)
+
+            # Synthesize a momentary Alt keypress (Windows allows focus change immediately after Alt)
+            ctypes.windll.user32.keybd_event(0x12, 0, 0, 0) # Alt down
+            ctypes.windll.user32.keybd_event(0x12, 0, 2, 0) # Alt up
+
+            if cur_thread != fg_thread:
+                try:
+                    win32process.AttachThreadInput(cur_thread, fg_thread, True)
+                except Exception:
+                    pass
+            if target_thread != fg_thread:
+                try:
+                    win32process.AttachThreadInput(target_thread, fg_thread, True)
+                except Exception:
+                    pass
+
+            try:
+                win32gui.BringWindowToTop(hwnd)
+                win32gui.SetForegroundWindow(hwnd)
+            except Exception:
+                pass
+            finally:
+                if cur_thread != fg_thread:
                     try:
-                        app = Application(backend="uia").connect(handle=fg_hwnd)
-                        return app.window(handle=fg_hwnd)
+                        win32process.AttachThreadInput(cur_thread, fg_thread, False)
+                    except Exception:
+                        pass
+                if target_thread != fg_thread:
+                    try:
+                        win32process.AttachThreadInput(target_thread, fg_thread, False)
                     except Exception:
                         pass
 
-            # 2. Look for Artlist or Chrome title in UIA
-            hwnds = find_windows(title_re="(?i).*Artlist.*|.*Chrome.*", backend="uia")
-            if not hwnds:
-                # 3. Look for Chrome class name
-                hwnds = find_windows(class_name="Chrome_WidgetWin_1", backend="uia")
-
-            if hwnds:
-                for hwnd in hwnds:
-                    try:
-                        app = Application(backend="uia").connect(handle=hwnd)
-                        return app.window(handle=hwnd)
-                    except Exception:
-                        continue
-        except Exception:
-            pass
-        time.sleep(0.8)
-
-    raise RuntimeError("Could not locate Google Chrome window within timeout.")
+        win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
+        time.sleep(0.2)
+        return win32gui.GetForegroundWindow() == hwnd
+    except Exception as e:
+        print(f"[OS Agent] Window foreground activation notice: {e}")
+        return False
 
 
 def focus_chrome_safely(chrome_win):
-    """Asserts focus safely and ensures Chrome is maximized on screen."""
+    """Asserts focus safely and ensures Chrome is brought to the absolute foreground and maximized."""
+    ensure_default_desktop()
     try:
         hwnd = getattr(chrome_win, "handle", None)
         if hwnd:
-            win32gui.ShowWindow(hwnd, win32con.SW_MAXIMIZE)
-            win32gui.SetForegroundWindow(hwnd)
-        chrome_win.set_focus()
-        time.sleep(0.4)
+            force_bring_to_foreground(hwnd)
+        try:
+            chrome_win.set_focus()
+        except Exception:
+            pass
+        time.sleep(0.3)
     except Exception as e:
         print(f"[OS Agent] Focus assertion notice: {e}")
+
+
+def open_url_in_chrome(url: str, timeout: float = 15.0):
+    """
+    Reliably opens target URL in Chrome, bringing Chrome to the foreground over any open application,
+    or launching Chrome if it is not currently running.
+    """
+    ensure_default_desktop()
+    chrome_exe = find_chrome_executable()
+    print(f"[OS Agent] Navigating to: {url}")
+
+    import pyperclip
+    from pywinauto.findwindows import find_windows
+
+    # 1. Check if real Chrome is already running
+    hwnds = find_windows(class_name="Chrome_WidgetWin_1", backend="uia")
+    chrome_hwnds = [h for h in hwnds if is_real_chrome_window(h)]
+    if not chrome_hwnds:
+        hwnds_title = find_windows(title_re="(?i).*Google Chrome.*", backend="uia")
+        chrome_hwnds = [h for h in hwnds_title if is_real_chrome_window(h)]
+
+    if chrome_hwnds:
+        # Chrome is already running: bring it to top, focus it, and open tab directly
+        hwnd = chrome_hwnds[0]
+        app = Application(backend="uia").connect(handle=hwnd)
+        win = app.window(handle=hwnd)
+        focus_chrome_safely(win)
+        time.sleep(0.3)
+
+        # Confirm Chrome has actual foreground focus before typing
+        if win32gui.GetForegroundWindow() != hwnd:
+            force_bring_to_foreground(hwnd)
+            time.sleep(0.3)
+
+        pyperclip.copy(url)
+        pyautogui.hotkey('ctrl', 't')
+        time.sleep(0.4)
+        pyautogui.hotkey('ctrl', 'v')
+        time.sleep(0.2)
+        pyautogui.press('enter')
+        time.sleep(0.8)
+        return win
+    else:
+        # Chrome is not running: launch Chrome with target URL directly
+        print(f"[OS Agent] Chrome is not running. Launching Chrome with: {url}")
+        try:
+            subprocess.Popen([chrome_exe, "--force-renderer-accessibility", "--start-maximized", url])
+        except Exception as e:
+            os.system(f'start "" "{chrome_exe}" --force-renderer-accessibility --start-maximized "{url}"')
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            ensure_default_desktop()
+            try:
+                hwnds = find_windows(class_name="Chrome_WidgetWin_1", backend="uia")
+                chrome_hwnds = [h for h in hwnds if is_real_chrome_window(h)]
+                if chrome_hwnds:
+                    hwnd = chrome_hwnds[0]
+                    app = Application(backend="uia").connect(handle=hwnd)
+                    win = app.window(handle=hwnd)
+                    focus_chrome_safely(win)
+                    return win
+            except Exception:
+                pass
+            time.sleep(0.5)
+
+    raise RuntimeError("Could not locate Google Chrome window within timeout.")
 
 
 def close_chrome_tab_safely(chrome_win):
@@ -203,15 +338,85 @@ def assert_auth_state(chrome_win) -> bool:
         return True
 
 
-def extract_track_title(chrome_win) -> str:
-    """Extracts track title from Chrome's window title (e.g., 'TrackName - Artist | Artlist...')."""
+def parse_title_from_url(url: str) -> Optional[str]:
+    """Derives a clean human-readable asset title from its URL slug."""
+    if not url:
+        return None
     try:
-        title = chrome_win.window_text()
-        if title and " - " in title:
-            return title.split(" - ")[0].strip()
+        from urllib.parse import urlparse
+        parsed = urlparse(url)
+        path = parsed.path.rstrip("/")
+        parts = [p for p in path.split("/") if p]
+        if not parts:
+            return None
+        slug = parts[-1]
+
+        # Remove trailing alphanumeric item ID e.g. -BK5FUP8, -WGFQYS7, or numeric ID
+        slug = re.sub(r"-[A-Za-z0-9]{5,12}$", "", slug)
+        slug = re.sub(r"/\d+$", "", slug)
+
+        words = slug.replace("-", " ").replace("_", " ").split()
+        if not words:
+            return None
+
+        acronyms = {"lut", "luts", "sfx", "vfx", "fx", "4k", "8k", "hd", "ui", "3d", "pr", "ae", "pro", "premiere", "resolve"}
+        title_words = []
+        for w in words:
+            wl = w.lower()
+            if wl in ("for", "and", "with", "the", "in", "on", "a", "an", "of"):
+                title_words.append(wl)
+            elif wl in acronyms:
+                title_words.append(w.upper() if len(w) <= 4 else w.capitalize())
+            else:
+                title_words.append(w.capitalize())
+
+        if title_words:
+            title_words[0] = title_words[0].capitalize()
+            return " ".join(title_words)
     except Exception:
         pass
-    return "Unknown Track"
+    return None
+
+
+def extract_track_title(chrome_win) -> Optional[str]:
+    """Extracts track/asset title from Chrome's window title."""
+    try:
+        title = chrome_win.window_text()
+        if not title:
+            return None
+        t = title.replace(" - Google Chrome", "").strip()
+
+        # Discard generic titles when page hasn't loaded yet
+        generic_patterns = [
+            r"^elements\s*$",
+            r"^envato elements.*$",
+            r"^artlist.*$",
+            r"^google chrome$",
+            r"^loading.*$",
+            r"^new tab$"
+        ]
+        for p in generic_patterns:
+            if re.match(p, t, re.IGNORECASE):
+                return None
+
+        # Split on platform delimiters
+        for delim in (" | Envato Elements", " - Envato Elements", " | Elements", " - Elements", " | Artlist", " - Artlist", " | ", " - "):
+            if delim.lower() in t.lower():
+                parts = re.split(re.escape(delim), t, flags=re.IGNORECASE)
+                if parts and parts[0].strip():
+                    t = parts[0].strip()
+                    break
+
+        # Remove "by Author" suffix if present (e.g. "Item Title by Author")
+        t = re.sub(r"\s+by\s+[^\-\|]+$", "", t, flags=re.IGNORECASE).strip()
+        # Remove trailing comma clauses (e.g. "Item Title, a Template...")
+        t = re.sub(r",\s*(a|an)\s+.*$", "", t, flags=re.IGNORECASE).strip()
+
+        if t and len(t) > 1 and not re.match(r"^(envato|artlist|elements|unknown track)$", t, re.IGNORECASE):
+            return t
+    except Exception:
+        pass
+    return None
 
 
 def get_page_document(chrome_win):
@@ -225,14 +430,32 @@ def get_page_document(chrome_win):
     return chrome_win
 
 
-def find_uia_element(chrome_win, title_re: str, control_types: Optional[List[str]] = None, timeout: float = 10.0, min_x: int = 180, min_y: int = 150, max_y_ratio: float = 0.85, max_width: int = 450, max_height: int = 150):
+def dismiss_cookie_banners_if_present(chrome_win):
+    """Dismisses common cookie/consent modals on Artlist or Envato if present."""
+    try:
+        btn = find_uia_element(
+            chrome_win,
+            title_re=r"(?i)^(Accept\s*all(\s*cookies)?|Accept\s*cookies|Got\s*it|Agree|I\s*Agree|Allow\s*all|Accept)$",
+            control_types=["Button", "Custom", "Hyperlink"],
+            min_x=0,
+            min_y=0,
+            timeout=1.5
+        )
+        if btn:
+            print(f"[OS Agent] Dismissing cookie banner at {btn}...")
+            human_move_and_click(btn.mid_point().x, btn.mid_point().y)
+            time.sleep(0.5)
+    except Exception:
+        pass
+
+
+def find_uia_element(chrome_win, title_re: str, control_types: Optional[List[str]] = None, timeout: float = 6.0, min_x: int = 50, min_y: int = 80, max_y_ratio: float = 0.88, max_width: int = 500, max_height: int = 180):
     """
     Finds a UIA element scoped to the page document, with fallback to window,
-    with rect bounds validation, max dimensions check (to exclude large containers),
-    and boundary exclusions (min_x, min_y) to avoid clicking navigation sidebar or top search/header bars.
+    using high-speed direct queries (strictly avoiding slow recursive tree descents).
     """
     if control_types is None:
-        control_types = ["Button", "Hyperlink", "MenuItem", "Custom", "Image", "Group"]
+        control_types = ["Button", "Hyperlink", "MenuItem", "Custom", "Image", "Text", "Group"]
 
     screen_w, screen_h = pyautogui.size()
     max_y = int(screen_h * max_y_ratio)
@@ -244,39 +467,32 @@ def find_uia_element(chrome_win, title_re: str, control_types: Optional[List[str
             targets.append(chrome_win)
 
         for target in targets:
-            # 1. First try matching by title regex alone (unrestricted control type)
+            # 1. Fast match by title regex alone
             try:
                 el = target.child_window(title_re=title_re, found_index=0)
-                if el.exists(timeout=0.25):
+                if el.exists(timeout=0.15):
                     r = el.rectangle()
                     if 0 < r.width() <= max_width and 0 < r.height() <= max_height:
                         mid = r.mid_point()
-                        if min_x < mid.x < screen_w - 10 and min_y < mid.y < max_y:
-                            try:
-                                el.set_focus()
-                            except Exception:
-                                pass
+                        if min_x <= mid.x < screen_w - 10 and min_y <= mid.y < max_y:
                             return r
             except Exception:
                 pass
 
-            # 2. Try each specific control type
+            # 2. Fast match across specific control types
             for ctype in control_types:
                 try:
                     el = target.child_window(title_re=title_re, control_type=ctype, found_index=0)
-                    if el.exists(timeout=0.2):
+                    if el.exists(timeout=0.10):
                         r = el.rectangle()
                         if 0 < r.width() <= max_width and 0 < r.height() <= max_height:
                             mid = r.mid_point()
-                            if min_x < mid.x < screen_w - 10 and min_y < mid.y < max_y:
-                                try:
-                                    el.set_focus()
-                                except Exception:
-                                    pass
+                            if min_x <= mid.x < screen_w - 10 and min_y <= mid.y < max_y:
                                 return r
                 except Exception:
                     pass
-        time.sleep(0.35)
+
+        time.sleep(0.15)
     return None
 
 
@@ -297,7 +513,7 @@ def locate_track_download_target(chrome_win) -> Tuple[int, int]:
         title_re=r"(?i).*(direct\s*download|download\s*track|download\s*song|download\s*sfx|download\s*wav|download\s*mp3).*",
         min_x=100,
         min_y=120,
-        timeout=4.0
+        timeout=3.0
     )
     if dl_rect:
         return dl_rect.mid_point().x, dl_rect.mid_point().y
@@ -309,13 +525,13 @@ def locate_track_download_target(chrome_win) -> Tuple[int, int]:
         control_types=["Button", "Hyperlink", "Custom", "Image"],
         min_x=100,
         min_y=120,
-        timeout=3.0
+        timeout=2.0
     )
     if dl_rect:
         return dl_rect.mid_point().x, dl_rect.mid_point().y
 
     # 3. Search for Play button anchor in the main content area
-    play_rect = find_uia_element(chrome_win, title_re=r"(?i)^(Play|Play\s*track|Play\s*song|Play\s*sfx|^Play.*)$", min_x=100, min_y=120, timeout=3.5)
+    play_rect = find_uia_element(chrome_win, title_re=r"(?i)^(Play|Play\s*track|Play\s*song|Play\s*sfx|^Play.*)$", min_x=100, min_y=120, timeout=2.0)
     if play_rect:
         print(f"[OS Agent] Found 'Play' anchor button at {play_rect}")
         target_x = play_rect.right + int(play_rect.width() * 0.75)
@@ -323,7 +539,7 @@ def locate_track_download_target(chrome_win) -> Tuple[int, int]:
         return target_x, target_y
 
     # 4. Broader download element fallback
-    dl_rect = find_uia_element(chrome_win, title_re=r"(?i).*download.*", min_x=100, min_y=120, max_y_ratio=0.85, timeout=3.0)
+    dl_rect = find_uia_element(chrome_win, title_re=r"(?i).*download.*", min_x=100, min_y=120, max_y_ratio=0.85, timeout=2.0)
     if dl_rect:
         return dl_rect.mid_point().x, dl_rect.mid_point().y
 
@@ -333,44 +549,53 @@ def locate_track_download_target(chrome_win) -> Tuple[int, int]:
 def locate_envato_download_target(chrome_win) -> Tuple[int, int]:
     """
     Finds the exact (X, Y) coordinates of the Download button on Envato Elements.
-    Uses Gemini Vision if configured, with UIA element fallback.
+    Uses fast direct UIA matching with instant geometric fallback for the right hero card.
     """
     if is_vision_enabled():
         pt = locate_element_with_gemini("the main Download or Add & Download button for this Envato item")
         if pt:
             return pt
 
-    # 1. Search for primary Download button in Envato
+    # 1. Search for primary Download button in Envato (fast direct match)
     dl_rect = find_uia_element(
         chrome_win,
-        title_re=r"(?i)^(Download|Download\s*now|Add\s*&\s*Download|Download\s*without\s*license|Free\s*Download|Download\s*Item)$",
+        title_re=r"(?i)^(Download|Download\s*now|Add\s*&\s*Download|Download\s*without\s*license|Free\s*Download|Download\s*Item|\s*Download\s*)$",
         control_types=["Button", "Hyperlink", "Custom", "Text"],
         min_x=50,
-        min_y=100,
-        timeout=5.0
+        min_y=80,
+        timeout=2.5
     )
     if dl_rect:
+        print(f"[OS Agent] Found Envato primary download button at {dl_rect}")
         return dl_rect.mid_point().x, dl_rect.mid_point().y
 
     # 2. Broader download match
     dl_rect = find_uia_element(
         chrome_win,
-        title_re=r"(?i).*download.*",
+        title_re=r"(?i).*(download|add\s*&\s*download).*",
+        control_types=["Button", "Hyperlink", "Custom", "Text"],
         min_x=50,
-        min_y=100,
+        min_y=80,
         max_y_ratio=0.85,
-        timeout=3.0
+        timeout=1.5
     )
     if dl_rect:
+        print(f"[OS Agent] Found Envato download element via broad match at {dl_rect}")
         return dl_rect.mid_point().x, dl_rect.mid_point().y
 
-    raise RuntimeError("Could not locate Envato Elements Download button on page.")
+    # 3. Deterministic Geometric Fallback on Desktop:
+    # On Envato Elements item pages, the primary green action button is anchored on the right hero column.
+    screen_w, screen_h = pyautogui.size()
+    fallback_x = int(screen_w * 0.84)
+    fallback_y = int(screen_h * 0.33)
+    print(f"[OS Agent] Envato UIA search timed out; executing instantaneous action card fallback at ({fallback_x}, {fallback_y})...")
+    return fallback_x, fallback_y
 
 
 def locate_stems_trigger_target(chrome_win) -> Tuple[int, int]:
     """
     Finds the exact (X, Y) coordinates of the Stems/Versions trigger button.
-    Uses Gemini Vision if configured, with Play button anchor fallback.
+    Uses Gemini Vision if configured, with element search and Play anchor fallback.
     """
     # 0. Try Gemini Multimodal Vision if API Key is configured
     if is_vision_enabled():
@@ -378,18 +603,39 @@ def locate_stems_trigger_target(chrome_win) -> Tuple[int, int]:
         if pt:
             return pt
 
-    # 1. Check Play anchor
+    # 1. Search for explicit Stems / Song Versions button in UIA
+    stems_rect = find_uia_element(
+        chrome_win,
+        title_re=r"(?i)^(stems?|song\s*versions?|versions?|view\s*stems|stems\s*&\s*versions?)$",
+        control_types=["Button", "Hyperlink", "MenuItem", "Custom", "Image"],
+        min_x=100,
+        timeout=3.0
+    )
+    if stems_rect:
+        print(f"[OS Agent] Found exact Stems trigger button via UIA: {stems_rect}")
+        return stems_rect.mid_point().x, stems_rect.mid_point().y
+
+    # 2. Check broader Stems / Versions word match
+    stems_rect = find_uia_element(
+        chrome_win,
+        title_re=r"(?i).*\b(stems?|song\s*versions?)\b.*",
+        control_types=["Button", "Hyperlink", "MenuItem", "Custom", "Image"],
+        min_x=100,
+        timeout=2.5
+    )
+    if stems_rect:
+        print(f"[OS Agent] Found Stems button via text pattern: {stems_rect}")
+        return stems_rect.mid_point().x, stems_rect.mid_point().y
+
+    # 3. Locate Play button anchor on track hero section
     play_rect = find_uia_element(chrome_win, title_re=r"(?i)^(Play|Play\s*track|Play\s*song|^Play.*)$", min_x=100, timeout=4.0)
     if play_rect:
         print(f"[OS Agent] Found 'Play' anchor button for Stems at {play_rect}")
-        target_x = play_rect.right + int(play_rect.width() * 4.5)
+        # The Stems button on Artlist is the 2nd icon button to the right of Play:
+        # [Play] -> [Download] (+48px) -> [Stems] (+96px)
+        target_x = play_rect.right + int(play_rect.width() * 1.85)
         target_y = play_rect.mid_point().y
         return target_x, target_y
-
-    # 2. Fallback: Search for Stems element
-    stems_rect = find_uia_element(chrome_win, title_re=r"(?i).*(stems?|versions?).*", min_x=100, timeout=4.0)
-    if stems_rect:
-        return stems_rect.mid_point().x, stems_rect.mid_point().y
 
     raise ValueError("NO_STEMS")
 
@@ -538,11 +784,12 @@ def watch_download_with_diff(job: Dict[str, Any], staging_dir: Path, pre_snapsho
                 print(f"[OS Agent] Download completed: {detected_file.name} ({file_size} bytes)")
                 update_job_phase(job_id, "moving", "Moving verified file to library...", file_size, file_size)
                 
+                derived_title = job.get("extracted_title") or parse_title_from_url(job.get("url")) or detected_file.stem
                 return complete_worker_job(
                     job_id=job_id,
                     temp_filename=str(detected_file),
                     reported_bytes=file_size,
-                    track_title=job.get("extracted_title") or detected_file.stem
+                    track_title=derived_title
                 )
                 
         time.sleep(0.8)
@@ -551,33 +798,6 @@ def watch_download_with_diff(job: Dict[str, Any], staging_dir: Path, pre_snapsho
 
 
 # ------------------------------------------------------------- Workflow Execution
-
-def locate_envato_download_target(chrome_win) -> Tuple[int, int]:
-    """Finds the primary Download button on an Envato Elements page."""
-    if is_vision_enabled():
-        pt = locate_element_with_gemini("the primary green download button on the Envato Elements item page")
-        if pt:
-            return pt
-
-    # Search for Envato Download button via UIA (min_x=180, min_y=150)
-    dl_rect = find_uia_element(
-        chrome_win,
-        title_re=r"(?i)^(Download|Download\s*now|Add\s*to\s*project.*|Free\s*download)$",
-        control_types=["Button", "Hyperlink", "Custom"],
-        min_x=180,
-        min_y=150,
-        timeout=5.0
-    )
-    if dl_rect:
-        return dl_rect.mid_point().x, dl_rect.mid_point().y
-
-    # Fallback to broader download match
-    dl_rect = find_uia_element(chrome_win, title_re=r"(?i).*download.*", min_x=180, min_y=150, max_y_ratio=0.75, timeout=4.0)
-    if dl_rect:
-        return dl_rect.mid_point().x, dl_rect.mid_point().y
-
-    raise RuntimeError("Could not locate Envato Elements Download button on page.")
-
 
 def check_cancellation(job_id: str):
     """Raises RuntimeError('Cancelled by user') if job was cancelled via dashboard."""
@@ -613,17 +833,30 @@ def execute_os_job(job: Dict[str, Any]):
 
     check_cancellation(job_id)
 
+    # 0. Remember currently focused application so we can restore it when finished
+    if sys.platform == "win32":
+        try:
+            fg_win = win32gui.GetForegroundWindow()
+            if fg_win and win32gui.IsWindow(fg_win):
+                job["_prior_hwnd"] = fg_win
+        except Exception:
+            pass
+
     # 1. Open URL directly in Chrome
     update_job_phase(job_id, "opening_tab", f"Opening {target_url}...")
     chrome_win = open_url_in_chrome(target_url)
     job["_chrome_win"] = chrome_win
     focus_chrome_safely(chrome_win)
 
-    # 2. Page Hydration
+    # 2. Page Hydration (Fast adaptive check)
     update_job_phase(job_id, "page_loading", "Waiting for page hydration...")
     print("[OS Agent] Waiting for page hydration...")
-    time.sleep(random.uniform(4.5, 6.0))
+    if provider == "envato":
+        time.sleep(1.8)
+    else:
+        time.sleep(random.uniform(3.0, 4.0))
     focus_chrome_safely(chrome_win)
+    dismiss_cookie_banners_if_present(chrome_win)
     check_cancellation(job_id)
 
     # 3. Auth Assertion (Artlist)
@@ -632,9 +865,9 @@ def execute_os_job(job: Dict[str, Any]):
             set_health(conn, "session_authenticated", "false")
         raise PermissionError("Artlist Session Logged Out. Cannot proceed.")
 
-    # 4. Extract Track Title from DOM via UIA
+    # 4. Extract Track Title from DOM via UIA or URL slug fallback
     update_job_phase(job_id, "reading_title", "Reading asset details...")
-    title = extract_track_title(chrome_win)
+    title = extract_track_title(chrome_win) or parse_title_from_url(target_url)
     if title:
         job["extracted_title"] = title
     print(f"[OS Agent] Extracted Title: '{job.get('extracted_title', 'Unknown')}'")
@@ -653,13 +886,13 @@ def execute_os_job(job: Dict[str, Any]):
         print(f"[OS Agent] Clicking Envato download at ({env_x}, {env_y})...")
         human_move_and_click(env_x, env_y)
         
-        time.sleep(1.2)
+        time.sleep(0.5)
         # Check if project modal / "Add & Download" popped up
         add_dl_rect = find_uia_element(
             chrome_win,
             title_re=r"(?i).*(Add\s*&\s*Download|Download\s*without\s*license|Create\s*new\s*project|Add\s*to\s*project).*",
             min_x=0,
-            timeout=3.5
+            timeout=2.0
         )
         if add_dl_rect:
             print(f"[OS Agent] Confirming Envato project download at {add_dl_rect}...")
@@ -675,36 +908,80 @@ def execute_os_job(job: Dict[str, Any]):
         human_move_and_click(stems_x, stems_y)
 
         # 2. Ensure Stems tab in modal
-        time.sleep(1.5)
-        stems_tab_rect = find_uia_element(chrome_win, title_re=r"(?i)^Stems$", control_types=["TabItem", "Button", "Custom", "Text"], min_x=0, timeout=3.0)
+        time.sleep(1.8)
+        stems_tab_rect = find_uia_element(
+            chrome_win,
+            title_re=r"(?i)^(Stems|Stems\s*&\s*Versions)$",
+            control_types=["TabItem", "Button", "Custom", "Text", "Hyperlink"],
+            min_x=0,
+            timeout=3.0
+        )
         if stems_tab_rect:
+            print(f"[OS Agent] Clicking Stems tab at {stems_tab_rect}...")
             human_move_and_click(stems_tab_rect.mid_point().x, stems_tab_rect.mid_point().y)
-            time.sleep(0.8)
+            time.sleep(1.0)
 
         # 3. "Download All Stems" in modal
         print("[OS Agent] Locating 'Download All Stems' via UIA...")
-        dl_all_rect = find_uia_element(chrome_win, title_re=r"(?i).*(Download\s*All\s*Stems|Download\s*All|Download\s*Stems|All\s*Stems).*", min_x=0, timeout=4.0)
+        dl_all_rect = find_uia_element(
+            chrome_win,
+            title_re=r"(?i).*(Download\s*All\s*Stems|Download\s*All|Download\s*Stems|Download\s*Zip|All\s*Stems).*",
+            control_types=["Button", "Hyperlink", "MenuItem", "Custom", "Text"],
+            min_x=0,
+            timeout=4.0
+        )
         
         screen_w, screen_h = pyautogui.size()
         if dl_all_rect:
             dl_x, dl_y = dl_all_rect.mid_point().x, dl_all_rect.mid_point().y
+            print(f"[OS Agent] Found 'Download All Stems' button at {dl_all_rect} -> ({dl_x}, {dl_y})")
         else:
-            # Geometric fallback: 'Download All Stems' button sits at X: ~76%, Y: ~42% inside the modal
-            dl_x = int(screen_w * 0.76)
-            dl_y = int(screen_h * 0.42)
-            print(f"[OS Agent] 'Download All Stems' UIA unresolved, executing geometric modal click at ({dl_x}, {dl_y})...")
+            # Check modal header area (in Artlist modal, Download All Stems is at the top right of modal)
+            dl_all_rect = find_uia_element(
+                chrome_win,
+                title_re=r"(?i).*download.*",
+                min_x=int(screen_w * 0.45),
+                min_y=int(screen_h * 0.15),
+                max_y_ratio=0.55,
+                timeout=3.0
+            )
+            if dl_all_rect:
+                dl_x, dl_y = dl_all_rect.mid_point().x, dl_all_rect.mid_point().y
+                print(f"[OS Agent] Found modal download control at {dl_all_rect}")
+            else:
+                # Modal top-right button location: X: ~68%, Y: ~32%
+                dl_x = int(screen_w * 0.68)
+                dl_y = int(screen_h * 0.32)
+                print(f"[OS Agent] 'Download All Stems' UIA unresolved, executing modal top-right click at ({dl_x}, {dl_y})...")
 
         update_job_phase(job_id, "selecting_variant", "Triggering Stems download...")
         print(f"[OS Agent] Clicking Download All Stems at ({dl_x}, {dl_y})...")
         human_move_and_click(dl_x, dl_y)
         
-        # 4. Handle Format Popover (WAV / ZIP)
-        # Dropdown menu hangs directly below the Download All Stems button at dl_y + 42
-        time.sleep(0.7)
-        target_wav_x = dl_x - 25
-        target_wav_y = dl_y + 42
-        print(f"[OS Agent] Clicking 'WAV' stems dropdown option at ({target_wav_x}, {target_wav_y})...")
-        human_move_and_click(target_wav_x, target_wav_y)
+        # 4. Check if download already started (1-click stems) or if format popover opened
+        time.sleep(1.0)
+        current_staging = snapshot_directory(settings.STAGING_PATH)
+        new_in_staging = set(current_staging.keys()) - set(pre_snapshot.keys())
+        if any(f.lower().endswith((".crdownload", ".tmp", ".zip")) for f in new_in_staging):
+            print("[OS Agent] Stems download initiated directly on first click.")
+        else:
+            # Check if format dropdown appeared (e.g. 'WAV', 'Download WAV')
+            wav_rect = find_uia_element(
+                chrome_win,
+                title_re=r"(?i)^(\s*wav\s*|download\s*wav|lossless\s*wav|\.zip)$",
+                control_types=["Button", "MenuItem", "Custom", "Text"],
+                min_x=0,
+                timeout=2.0
+            )
+            if wav_rect:
+                print(f"[OS Agent] Clicking 'WAV' stems dropdown at {wav_rect}...")
+                human_move_and_click(wav_rect.mid_point().x, wav_rect.mid_point().y)
+            else:
+                # If dropdown is directly below
+                target_wav_x = dl_x
+                target_wav_y = dl_y + 38
+                print(f"[OS Agent] Clicking dropdown menu below button at ({target_wav_x}, {target_wav_y})...")
+                human_move_and_click(target_wav_x, target_wav_y)
 
     else:
         # ---------------- MUSIC & SFX WORKFLOW ----------------
@@ -723,16 +1000,36 @@ def execute_os_job(job: Dict[str, Any]):
         if any(f.lower().endswith((".crdownload", ".tmp", ".wav", ".mp3", ".zip")) for f in new_in_staging):
             print("[OS Agent] Download initiated directly on first click (1-click download).")
         else:
-            # Format popover (Lossless WAV) for music tracks with dropdown
-            wav_opt = find_uia_element(chrome_win, title_re=r"(?i).*(Lossless\s*WAV|Lossless|WAV).*", control_types=["MenuItem", "Button", "Custom", "Text", "ListItem"], min_x=0, timeout=2.0)
+            # Format popover / button expansion (e.g. "download wav", "WAV", "Lossless WAV")
+            # Strictly use word boundary and only match buttons / menu items, excluding breadcrumbs/titles with 'waves'
+            wav_opt = find_uia_element(
+                chrome_win,
+                title_re=r"(?i)^(\s*download\s*wav\s*|\s*wav\s*|lossless\s*wav)$",
+                control_types=["Button", "MenuItem", "Custom"],
+                min_x=100,
+                min_y=120,
+                timeout=2.5
+            )
+            if not wav_opt:
+                # Fallback to bounded word match
+                wav_opt = find_uia_element(
+                    chrome_win,
+                    title_re=r"(?i).*\b(download\s*wav|lossless\s*wav)\b.*",
+                    control_types=["Button", "MenuItem", "Custom"],
+                    min_x=100,
+                    min_y=120,
+                    timeout=1.5
+                )
+
             if wav_opt:
                 print(f"[OS Agent] Clicking format option at {wav_opt}...")
                 human_move_and_click(wav_opt.mid_point().x, wav_opt.mid_point().y)
             else:
-                # The format dropdown sits directly below the circular download button
-                fallback_y = dl_y + 48
-                print(f"[OS Agent] Format dropdown fallback click at ({dl_x}, {fallback_y})...")
-                human_move_and_click(dl_x, fallback_y)
+                # Geometric fallback: on Artlist, the expanded WAV button sits directly to the right (+140px) or below (+48px)
+                wav_x = dl_x + 140
+                wav_y = dl_y
+                print(f"[OS Agent] Format button UIA unresolved, executing fallback click at ({wav_x}, {wav_y})...")
+                human_move_and_click(wav_x, wav_y)
 
     # 3. Watch for downloaded file with pre_snapshot baseline
     watch_download_with_diff(job, settings.STAGING_PATH, pre_snapshot=pre_snapshot)
@@ -745,20 +1042,53 @@ def execute_os_job(job: Dict[str, Any]):
 
 # ------------------------------------------------------------- Agent Daemon Loop
 
+def enable_stay_awake() -> bool:
+    """Informs Windows OS to prevent screen sleep, display timeout, and system idle lock."""
+    if sys.platform == "win32":
+        try:
+            # ES_CONTINUOUS (0x80000000) | ES_SYSTEM_REQUIRED (0x01) | ES_DISPLAY_REQUIRED (0x02) | ES_AWAYMODE_REQUIRED (0x40)
+            ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001 | 0x00000002 | 0x00000040)
+            return True
+        except Exception:
+            pass
+    return False
+
+
+def pulse_idle_keepalive():
+    """Resets the Windows idle timer to keep corporate/domain laptops from auto-locking."""
+    if sys.platform == "win32":
+        try:
+            # Re-assert execution state
+            ctypes.windll.kernel32.SetThreadExecutionState(0x80000000 | 0x00000001 | 0x00000002 | 0x00000040)
+            # Send harmless zero-delta mouse event (resets OS idle timer without moving cursor)
+            ctypes.windll.user32.mouse_event(0x0001, 0, 0, 0, 0)
+        except Exception:
+            pass
+
+
 def run_os_agent_loop():
     """Continuous polling loop for the Native OS-Level Agent."""
+    ensure_default_desktop()
+    enable_stay_awake()
     print("======================================================================")
     print(" 🤖 ARTLIST NATIVE OS-LEVEL AUTOMATION AGENT (v3 UIA-DOCUMENT)")
     print("======================================================================")
     print(" • Input Mode   : Real Windows Hardware Events (isTrusted: true)")
     print(" • Locator      : Scoped Document UIAutomation - Deterministic")
+    print(" • Keep-Awake   : Windows Stay-Awake & Anti-Lock Active")
     print(" • Exclusivity  : Respects Extension Heartbeat locks")
     print("======================================================================")
-    print(" [WARNING] Desktop must remain UNLOCKED, UNOBSTRUCTED, and NO SCREENSAVER.")
     print(" [INFO] Listening for queued download jobs...\n")
+
+    last_keepalive = time.time()
 
     while True:
         try:
+            # Pulse Windows idle keepalive every 45 seconds
+            if time.time() - last_keepalive > 45.0:
+                pulse_idle_keepalive()
+                last_keepalive = time.time()
+
             if not is_working_hours():
                 time.sleep(30)
                 continue
@@ -796,6 +1126,16 @@ def run_os_agent_loop():
                     # Clean up Chrome tab if a window handle was captured
                     if job.get("_chrome_win"):
                         close_chrome_tab_safely(job["_chrome_win"])
+                    # Smoothly restore focus to the previously active application (Premiere Pro, DaVinci, etc.)
+                    if job.get("_prior_hwnd") and sys.platform == "win32":
+                        try:
+                            prior_h = job["_prior_hwnd"]
+                            ch_h = getattr(job.get("_chrome_win"), "handle", None)
+                            if win32gui.IsWindow(prior_h) and prior_h != ch_h:
+                                print(f"[OS Agent] Returning focus to previous application (HWND: {prior_h})...")
+                                force_bring_to_foreground(prior_h)
+                        except Exception as e:
+                            print(f"[OS Agent] Could not restore previous focus: {e}")
 
                 # Enforce randomized human cooldown interval (disabled if 0)
                 max_cd = max(0, settings.COOLDOWN_MAX_SECONDS)

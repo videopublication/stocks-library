@@ -7,15 +7,57 @@ from pydantic import BaseModel
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def get_lan_ip() -> str:
+    """Auto-detects the active LAN IPv4 address of this machine."""
+    import socket
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
+
+
+def get_all_lan_ips() -> list[str]:
+    """Returns a list of all active IPv4 addresses on this machine (Ethernet, Wi-Fi, etc.)."""
+    import socket
+    ips = []
+    primary = get_lan_ip()
+    if primary and primary != "127.0.0.1":
+        ips.append(primary)
+    try:
+        for ip in socket.gethostbyname_ex(socket.gethostname())[2]:
+            if ip not in ips and not ip.startswith("127.") and not ip.startswith("169.254."):
+                ips.append(ip)
+    except Exception:
+        pass
+    return ips or ["127.0.0.1"]
+
+
 def _default_token() -> str:
     """
-    Read the shared token from env, or generate a random one per process.
-
-    A random default is deliberate: it means an unconfigured deployment is
-    still authenticated (the dashboard receives the token server-side), rather
-    than silently running wide open on a well-known string.
+    Read the shared token from env, or persist a secure token to .relay_token.
+    This prevents connected browser tabs on LAN workstations from getting 401
+    errors whenever the server restarts.
     """
-    return os.getenv("AUTH_TOKEN") or secrets.token_urlsafe(24)
+    if os.getenv("AUTH_TOKEN"):
+        return os.getenv("AUTH_TOKEN")
+    token_file = BASE_DIR / ".relay_token"
+    if token_file.exists():
+        try:
+            tok = token_file.read_text(encoding="utf-8").strip()
+            if tok:
+                return tok
+        except Exception:
+            pass
+    token = secrets.token_urlsafe(24)
+    try:
+        token_file.write_text(token, encoding="utf-8")
+    except Exception:
+        pass
+    return token
 
 
 class Settings(BaseModel):
@@ -54,22 +96,27 @@ class Settings(BaseModel):
     MIN_FREE_DISK_BYTES: int = int(os.getenv("MIN_FREE_DISK_BYTES", str(5 * 1024 ** 3)))  # 5GB
 
     # Server Settings
-    # Bind to loopback by default. The API is unauthenticated from the browser's
-    # point of view until the token check runs, and the node holds a live
-    # Artlist session - it must not be reachable from the LAN by default.
-    HOST: str = os.getenv("HOST", "127.0.0.1")
+    # Automatically bound to active LAN IP for network studio access.
+    HOST: str = os.getenv("HOST", get_lan_ip())
     PORT: int = int(os.getenv("PORT", "5000"))
     AUTH_TOKEN: str = _default_token()
 
 
 settings = Settings()
 
-# Allowed browser origins for the dashboard. Wildcard CORS is never correct here:
-# the service runs on loopback alongside an authenticated Artlist session, so any
-# page the user visits could otherwise queue downloads against their account.
+# Allowed browser origins for the dashboard.
 ALLOWED_ORIGINS = [
+    "*",
     f"http://127.0.0.1:{settings.PORT}",
     f"http://localhost:{settings.PORT}",
+    f"http://{settings.HOST}:{settings.PORT}",
+    f"http://192.168.200.131:{settings.PORT}",
+    f"http://10.50.1.222:{settings.PORT}",
+    f"https://127.0.0.1:{settings.PORT}",
+    f"https://localhost:{settings.PORT}",
+    f"https://{settings.HOST}:{settings.PORT}",
+    f"https://192.168.200.131:{settings.PORT}",
+    f"https://10.50.1.222:{settings.PORT}",
 ]
 
 # Ensure directories exist

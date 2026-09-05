@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="fav-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffb74d"/>
+      <stop offset="45%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="fav-top" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#fffbeb"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded Base Shield -->
+  <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#fav-bg)"/>
+  <!-- Top Isometric Media Plate -->
+  <path d="M16 6.5L25 11.5L16 16.5L7 11.5L16 6.5Z" fill="url(#fav-top)"/>
+  <!-- Middle Shelf -->
+  <path d="M7 14.8L16 19.8L25 14.8V17.2L16 22.2L7 17.2V14.8Z" fill="#ffffff" fill-opacity="0.8"/>
+  <!-- Bottom Shelf Base -->
+  <path d="M7 20.2L16 25.2L25 20.2V22.5L16 27.5L7 22.5V20.2Z" fill="#ffffff" fill-opacity="0.55"/>
+  <!-- Core Diamond Dot -->
+  <circle cx="16" cy="11.5" r="2.2" fill="#d97706"/>
+</svg>

@@ -8,8 +8,10 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="alternate icon" href="/favicon.ico">
   <link rel="stylesheet" href="/static/style.css">
   <script>
     (function () {
@@ -21,12 +23,90 @@
 </head>
 <body>
 
+<!-- Login Gatekeeper Overlay (Hidden by default; revealed only if unauthenticated) -->
+<div id="login-overlay" class="login-modal-overlay hidden">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="login-brand-mark">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="login-brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ffb74d"/>
+              <stop offset="45%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#d97706"/>
+            </linearGradient>
+            <linearGradient id="login-brand-top" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#fffbeb"/>
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#login-brand-grad)"/>
+          <path d="M16 6.5L25 11.5L16 16.5L7 11.5L16 6.5Z" fill="url(#login-brand-top)"/>
+          <path d="M7 14.8L16 19.8L25 14.8V17.2L16 22.2L7 17.2V14.8Z" fill="#ffffff" fill-opacity="0.8"/>
+          <path d="M7 20.2L16 25.2L25 20.2V22.5L16 27.5L7 22.5V20.2Z" fill="#ffffff" fill-opacity="0.55"/>
+          <circle cx="16" cy="11.5" r="2.2" fill="#d97706"/>
+        </svg>
+      </div>
+      <h1 class="login-title">STOCKS LIBRARY</h1>
+      <p class="login-subtitle">Studio Media Archive &amp; Creative Hub</p>
+    </div>
+
+    <div id="login-error-banner" class="studio-notice notice-danger hidden">
+      <span id="login-error-text">Invalid credentials</span>
+    </div>
+
+    <form id="login-form" class="login-form" novalidate>
+      <div class="login-field-group">
+        <label for="login-username" class="login-label">Username</label>
+        <div class="login-input-wrap">
+          <svg class="login-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <input type="text" id="login-username" class="login-input" placeholder="Enter username" autocomplete="username" required>
+        </div>
+      </div>
+
+      <div class="login-field-group">
+        <label for="login-password" class="login-label">Password</label>
+        <div class="login-input-wrap">
+          <svg class="login-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          <input type="password" id="login-password" class="login-input" placeholder="Enter password" autocomplete="current-password" required>
+        </div>
+      </div>
+
+      <button type="submit" id="login-btn" class="btn-login-submit">
+        <span class="btn-text">Sign In to Studio Hub</span>
+        <svg class="btn-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7"></path>
+        </svg>
+      </button>
+    </form>
+  </div>
+</div>
+
 <header class="app-header">
   <div class="header-container">
     <div class="brand-block">
       <div class="brand-mark">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 18h16M4 14h16M9 14v4M15 14v4M3 10l9-5 9 5"></path>
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="hdr-brand-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ffb74d"/>
+              <stop offset="45%" stop-color="#f59e0b"/>
+              <stop offset="100%" stop-color="#d97706"/>
+            </linearGradient>
+            <linearGradient id="hdr-brand-top" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#fffbeb"/>
+            </linearGradient>
+          </defs>
+          <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#hdr-brand-grad)"/>
+          <path d="M16 6.5L25 11.5L16 16.5L7 11.5L16 6.5Z" fill="url(#hdr-brand-top)"/>
+          <path d="M7 14.8L16 19.8L25 14.8V17.2L16 22.2L7 17.2V14.8Z" fill="#ffffff" fill-opacity="0.8"/>
+          <path d="M7 20.2L16 25.2L25 20.2V22.5L16 27.5L7 22.5V20.2Z" fill="#ffffff" fill-opacity="0.55"/>
+          <circle cx="16" cy="11.5" r="2.2" fill="#d97706"/>
         </svg>
       </div>
       <div class="brand-meta">
@@ -38,7 +118,7 @@
     <div class="header-telemetry" role="status" aria-live="polite">
       <div class="status-node" id="server-status" title="Stocks Library server status">
         <span class="status-indicator"></span>
-        <span class="status-label">Library Ready</span>
+        <span class="status-label">Connection Ready</span>
       </div>
       <div class="status-node" id="session-status" title="Hardware agent health">
         <span class="status-indicator"></span>
@@ -47,6 +127,33 @@
     </div>
 
     <div class="header-actions">
+      <!-- Admin Control Panel Trigger Button (Visible only to Admin) -->
+      <button type="button" id="admin-panel-btn" class="header-action-btn admin-btn hidden" title="Open Admin Control Dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+        <span>Admin Panel</span>
+      </button>
+
+      <!-- User Profile & Session Controls -->
+      <div class="user-session-block" id="user-session-block">
+        <div class="user-profile-badge" id="user-profile-badge" title="Click to view profile or change password">
+          <span class="user-avatar-circle">👤</span>
+          <span class="user-display-name" id="user-display-name">admin</span>
+          <span class="role-chip" id="user-role-chip">ADMIN</span>
+        </div>
+        <button type="button" id="btn-open-change-password" class="header-icon-btn" title="Change My Password" aria-label="Change My Password">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </button>
+        <button type="button" id="logout-btn" class="header-icon-btn danger-hover" title="Log Out" aria-label="Log Out">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+
       <button type="button" id="refresh-btn" class="header-icon-btn" title="Refresh live data" aria-label="Refresh live data">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
@@ -66,11 +173,8 @@
   </div>
 </header>
 
-<main class="app-workspace">
+<main class="app-workspace" id="library-workspace-view">
 
-  <!-- ONE bar. Paste a link to bridge it, type words to search the archive.
-       Two inputs for two verbs was the wrong model: the editor always starts
-       from the same place, and the app decides which verb applies. -->
   <form id="command-form" class="command-bar" novalidate>
     <div class="command-field">
       <span class="command-icon" id="command-icon">
@@ -79,8 +183,8 @@
         </svg>
       </span>
       <input type="text" id="command-input"
-             placeholder="Search the archive, or paste an Artlist / Envato link to bridge it"
-             autocomplete="off" spellcheck="false" autofocus
+             placeholder="Search the archive, or paste an Artlist / Envato link to download it"
+             autocomplete="off" spellcheck="false"
              aria-label="Search archive or paste an asset link">
       <div class="command-trailing">
         <span id="url-detected-badge" class="detected-badge hidden"></span>
@@ -89,8 +193,6 @@
       </div>
     </div>
 
-    <!-- Options and the commit button appear only once a link is recognised.
-         In search mode they would be noise for a verb that needs no options. -->
     <div class="command-options hidden" id="command-options">
       <div class="styled-select">
         <label class="sr-only" for="track-variant">Package</label>
@@ -114,8 +216,6 @@
       </button>
     </div>
 
-    <!-- The answer to "do we already have this?" arrives here while the editor
-         is still looking at the link, not after the download has started. -->
     <div class="resolution-strip hidden" id="resolution-strip" role="status" aria-live="polite">
       <span class="resolution-dot"></span>
       <div class="resolution-body">
@@ -130,7 +230,7 @@
 
   <div class="workspace-grid">
 
-    <!-- Primary object: the archive. It reads first and owns the width. -->
+    <!-- Primary object: Media Library with User Attribution -->
     <section class="studio-card library-section">
       <div class="card-header library-top-bar">
         <div class="library-header-left">
@@ -152,20 +252,31 @@
       </nav>
 
       <div class="table-scroll-surface">
-        <table class="sangraha-table">
+        <table class="library-table sangraha-table">
           <thead>
             <tr>
               <th class="col-stream" aria-label="Preview"></th>
-              <th class="col-asset">Asset</th>
-              <th class="col-provider">Platform / Type</th>
-              <th class="col-size">Size</th>
-              <th class="col-reused" title="Cache hits served without re-downloading">Reused</th>
-              <th class="col-actions">Actions</th>
+              <th class="col-asset sortable" data-sort="title" title="Sort by Title">
+                <div class="th-sort-inner"><span>Asset</span><span class="sort-icon" id="sort-icon-title">⇅</span></div>
+              </th>
+              <th class="col-provider sortable" data-sort="provider" title="Sort by Platform / Type">
+                <div class="th-sort-inner"><span>Platform / Type</span><span class="sort-icon" id="sort-icon-provider">⇅</span></div>
+              </th>
+              <th class="col-requested sortable" data-sort="requested_by" title="Sort by User">
+                <div class="th-sort-inner"><span>Requested By</span><span class="sort-icon" id="sort-icon-requested_by">⇅</span></div>
+              </th>
+              <th class="col-size sortable" data-sort="bytes" title="Sort by Size">
+                <div class="th-sort-inner"><span>Size</span><span class="sort-icon" id="sort-icon-bytes">⇅</span></div>
+              </th>
+              <th class="col-reused sortable" data-sort="hit_count" title="Sort by Reused Count">
+                <div class="th-sort-inner"><span>Reused</span><span class="sort-icon" id="sort-icon-hit_count">⇅</span></div>
+              </th>
+              <th class="col-actions" style="text-align: center;">Actions</th>
             </tr>
           </thead>
           <tbody id="library-tbody">
             <tr>
-              <td colspan="6" class="table-placeholder-cell">
+              <td colspan="7" class="table-placeholder-cell">
                 <div class="loading-state-wrap">
                   <div class="studio-spinner"></div>
                   <span>Loading archive…</span>
@@ -177,7 +288,7 @@
       </div>
     </section>
 
-    <!-- Ambient column: what the machine is doing, and what it just did. -->
+    <!-- Pipeline & Telemetry Rail -->
     <aside class="status-rail">
 
       <div id="dldir-banner" class="studio-notice notice-warn hidden">
@@ -190,7 +301,7 @@
         <div class="notice-text">
           <strong>Chrome download path mismatch</strong>
           <span id="dldir-detail"></span>
-          <div class="notice-sub">Set the destination in <code>chrome://settings/downloads</code> to the staging path and turn off “Ask where to save each file”.</div>
+          <div class="notice-sub">Set the destination in <code>chrome://settings/downloads</code> to the staging path.</div>
         </div>
       </div>
 
@@ -230,6 +341,7 @@
               <span class="status-orb-active"></span>
               <div class="in-flight-title" id="in-flight-title">Working…</div>
               <span class="pill-tag" id="in-flight-variant">MAIN</span>
+              <span class="user-pill-tag" id="in-flight-user" title="Requested by">👤 —</span>
             </div>
             <div class="in-flight-meta">
               <div class="in-flight-stopwatch">
@@ -274,16 +386,36 @@
           <span class="storage-info mono" id="disk-free-val">—</span>
         </div>
 
-        <div class="quota-row">
-          <span class="quota-title">Daily quota</span>
-          <span class="quota-readout">
-            <span class="quota-fraction mono" id="quota-text">0/20</span>
-            <span class="pill-badge" id="quota-percent">0%</span>
-          </span>
+        <div class="quota-title-bar">
+          <span class="quota-title">Daily Limit</span>
         </div>
 
-        <div class="meter-rail" role="progressbar" aria-labelledby="quota-text">
-          <div class="meter-bar" id="quota-bar" style="width: 0%"></div>
+        <!-- Artlist Limit Block -->
+        <div class="provider-limit-block">
+          <div class="quota-row">
+            <span class="provider-badge artlist">Artlist</span>
+            <span class="quota-readout">
+              <span class="quota-fraction mono" id="artlist-limit-text">0/40</span>
+              <span class="pill-badge" id="artlist-limit-percent">0%</span>
+            </span>
+          </div>
+          <div class="meter-rail" role="progressbar" aria-label="Artlist daily limit">
+            <div class="meter-bar artlist-meter" id="artlist-limit-bar" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Envato Limit Block -->
+        <div class="provider-limit-block">
+          <div class="quota-row">
+            <span class="provider-badge envato">Envato</span>
+            <span class="quota-readout">
+              <span class="quota-fraction mono" id="envato-limit-text">0/20</span>
+              <span class="pill-badge" id="envato-limit-percent">0%</span>
+            </span>
+          </div>
+          <div class="meter-rail" role="progressbar" aria-label="Envato daily limit">
+            <div class="meter-bar envato-meter" id="envato-limit-bar" style="width: 0%"></div>
+          </div>
         </div>
 
         <div class="telemetry-grid">
@@ -306,6 +438,7 @@
   </div>
 </main>
 
+<!-- Audio Player Bar -->
 <div id="audio-player-bar" class="studio-audio-player hidden">
   <div class="player-container">
     <div class="player-track-info">
@@ -335,6 +468,763 @@
         <input type="range" id="player-volume" class="volume-slider" value="100" min="0" max="100" aria-label="Volume">
       </div>
       <button type="button" id="player-close-btn" class="player-dismiss-btn" title="Close preview" aria-label="Close preview">✕</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- ADMIN CONTROL FULL-SCREEN PAGE VIEW                                       -->
+<!-- ========================================================================= -->
+<main id="admin-page-view" class="admin-page-view hidden" aria-label="Admin Control Dashboard">
+  <div class="admin-page-container">
+    <div class="admin-page-topbar">
+      <div class="admin-topbar-left">
+        <button type="button" id="btn-back-to-library" class="btn-back-library" title="Return to Media Library">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12"></line>
+            <polyline points="12 19 5 12 12 5"></polyline>
+          </svg>
+          <span>Back to Media Library</span>
+        </button>
+        <div class="admin-topbar-title-wrap">
+          <div class="admin-shield-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+          </div>
+          <div>
+            <h1 id="admin-page-title" class="admin-page-title">Admin Studio Control</h1>
+            <p class="admin-page-subtitle">Telemetry, User Permissions, Storage Quotas &amp; Disaster Recovery</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-topbar-right">
+        <div class="live-status-pill">
+          <span class="pulse-dot"></span>
+          <span>Studio Hub Active</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin Navigation Tabs (Consolidated 4 Clean Hubs) -->
+    <div class="admin-nav-tabs" role="tablist">
+      <button type="button" id="tab-btn-reports" class="admin-tab-btn active" role="tab" aria-selected="true" data-tab="reports">
+        <span>📊 Overview &amp; Reports</span>
+      </button>
+      <button type="button" id="tab-btn-users" class="admin-tab-btn" role="tab" aria-selected="false" data-tab="users">
+        <span>👥 Team &amp; Profiles</span>
+      </button>
+      <button type="button" id="tab-btn-audit" class="admin-tab-btn" role="tab" aria-selected="false" data-tab="audit">
+        <span>♻️ Activity &amp; Reuse Log</span>
+      </button>
+      <button type="button" id="tab-btn-settings" class="admin-tab-btn" role="tab" aria-selected="false" data-tab="settings">
+        <span>⚙️ Settings &amp; Backup</span>
+      </button>
+    </div>
+
+    <div class="admin-modal-body admin-page-body">
+      <!-- TAB 0: ANALYTICS & REPORTS (DEFAULT ACTIVE) -->
+      <div id="admin-tab-reports" class="admin-tab-pane active">
+        <div class="admin-pane-toolbar">
+          <div>
+            <h3 class="pane-title">Studio Download Reports &amp; Analytics</h3>
+            <p class="pane-subtitle">Aggregated downloads, bandwidth volume, and editor productivity metrics.</p>
+          </div>
+          <div class="admin-toolbar-actions">
+            <div class="analytics-period-selector" role="group" aria-label="Select report period">
+              <button type="button" class="analytics-period-btn active" data-period="daily">Daily (7 Days)</button>
+              <button type="button" class="analytics-period-btn" data-period="weekly">Weekly (12 Wks)</button>
+              <button type="button" class="analytics-period-btn" data-period="monthly">Monthly (12 Mos)</button>
+            </div>
+            <button type="button" id="btn-export-analytics" class="btn-admin-action-secondary" title="Export CSV Report">
+              ⬇️ Export CSV
+            </button>
+            <button type="button" id="btn-refresh-analytics" class="btn-admin-action-secondary" title="Refresh Analytics">
+              🔄 Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- KPI Metrics Strip -->
+        <div class="analytics-kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-card-header">
+              <span class="kpi-title">TOTAL DOWNLOADS</span>
+              <span class="kpi-badge" id="kpi-period-badge">Daily</span>
+            </div>
+            <div class="kpi-value" id="kpi-total-downloads">-</div>
+            <div class="kpi-subtitle" id="kpi-requests-detail">- requests processed</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-card-header">
+              <span class="kpi-title">LIBRARY REUSES (SAVED QUOTA)</span>
+              <span class="kpi-icon">♻️</span>
+            </div>
+            <div class="kpi-value" id="kpi-total-reuses" style="color: #10b981;">-</div>
+            <div class="kpi-subtitle" id="kpi-reuses-detail">Served locally from cache</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-card-header">
+              <span class="kpi-title">BANDWIDTH CONSUMED</span>
+              <span class="kpi-icon">💾</span>
+            </div>
+            <div class="kpi-value" id="kpi-total-bandwidth">-</div>
+            <div class="kpi-subtitle" id="kpi-bandwidth-saved-sub">- saved via reuse</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-card-header">
+              <span class="kpi-title">TEAM UTILIZATION</span>
+              <span class="kpi-icon">👥</span>
+            </div>
+            <div class="kpi-value" id="kpi-active-editors">-</div>
+            <div class="kpi-subtitle" id="kpi-success-rate">- success rate</div>
+          </div>
+        </div>
+
+        <!-- Visual Trend & Distribution Row -->
+        <div class="analytics-visual-row">
+          <div class="analytics-chart-card">
+            <div class="chart-header">
+              <div>
+                <h4 class="chart-title">Download Activity Over Time</h4>
+                <div id="chart-hover-info" class="chart-hover-strip">Hover over any bar to inspect daily breakdown</div>
+              </div>
+              <span class="chart-legend"><span class="legend-dot completed"></span> Completed <span class="legend-dot failed"></span> Failed</span>
+            </div>
+            <div class="chart-container" id="analytics-chart-container">
+              <div class="chart-loading">Loading timeline…</div>
+            </div>
+          </div>
+
+          <div class="analytics-split-card">
+            <h4 class="chart-title">Platform &amp; Category Share</h4>
+            <div class="platform-split-container">
+              <div class="platform-split-bar">
+                <div class="platform-bar-segment artlist" id="platform-bar-artlist" style="width: 50%;"></div>
+                <div class="platform-bar-segment envato" id="platform-bar-envato" style="width: 50%;"></div>
+              </div>
+              <div class="platform-legend-row">
+                <div class="platform-legend-item">
+                  <span class="legend-color artlist"></span>
+                  <span class="platform-name">Artlist:</span>
+                  <strong id="platform-count-artlist">0</strong>
+                </div>
+                <div class="platform-legend-item">
+                  <span class="legend-color envato"></span>
+                  <span class="platform-name">Envato:</span>
+                  <strong id="platform-count-envato">0</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="category-pills-wrap" id="analytics-category-pills">
+              <!-- Dynamically filled category distribution pills -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Reused Assets Showcase -->
+        <div class="top-reused-card" id="top-reused-container">
+          <div class="card-title-row" style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <h4 class="chart-title">♻️ Top Reused Studio Assets</h4>
+              <span class="pane-subtitle">Most frequently reused tracks &amp; templates saving studio quota</span>
+            </div>
+            <span class="top-reused-badge" id="top-reused-badge-total">0 Reuses Recorded</span>
+          </div>
+          <div class="top-reused-list" id="top-reused-list">
+            <div class="empty-placeholder is-inline">No reuse events recorded yet</div>
+          </div>
+        </div>
+
+        <!-- Top Editors Utilization Leaderboard -->
+        <div class="analytics-leaderboard-card">
+          <div class="card-title-row">
+            <h4 class="chart-title">Top Editors Activity &amp; Productivity</h4>
+            <span class="pane-subtitle">Ranked by completed asset deliveries</span>
+          </div>
+          <div class="admin-table-container">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Editor</th>
+                  <th>Total Requests</th>
+                  <th>Completed</th>
+                  <th>Data Volume</th>
+                  <th>Last Active</th>
+                </tr>
+              </thead>
+              <tbody id="analytics-leaderboard-tbody">
+                <tr><td colspan="6" class="table-placeholder-cell">Loading editor metrics…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 1: USERS MANAGEMENT -->
+      <div id="admin-tab-users" class="admin-tab-pane hidden">
+        <div class="admin-pane-toolbar">
+          <div>
+            <h3 class="pane-title">Studio User Accounts</h3>
+            <p class="pane-subtitle">Manage editor access and roles.</p>
+          </div>
+          <div class="admin-toolbar-actions">
+            <div class="admin-search-wrap">
+              <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="admin-user-search-input" class="admin-search-input" placeholder="Search user, name, role...">
+              <button type="button" id="admin-user-search-clear" class="admin-search-clear hidden" title="Clear search">×</button>
+            </div>
+            <button type="button" id="btn-show-add-user" class="btn-admin-action-primary">+ Add New User</button>
+          </div>
+        </div>
+
+        <!-- Add User Inline Form (Collapsible) -->
+        <div id="add-user-form-card" class="add-user-form-card hidden">
+          <h4 class="form-card-title">Create New Studio Account</h4>
+          <form id="create-user-form" class="admin-create-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="new-username">Username *</label>
+                <input type="text" id="new-username" required placeholder="e.g. rahul_editor">
+              </div>
+              <div class="form-group">
+                <label for="new-fullname">Full Name</label>
+                <input type="text" id="new-fullname" placeholder="e.g. Rahul Sharma">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="new-password">Password *</label>
+                <input type="password" id="new-password" required placeholder="Minimum 4 characters">
+              </div>
+              <div class="form-group">
+                <label for="new-role">Role *</label>
+                <select id="new-role">
+                  <option value="editor" selected>Editor (Downloads &amp; Library Access)</option>
+                  <option value="admin">Administrator (Full System Access)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-actions-row">
+              <button type="button" id="btn-cancel-add-user" class="btn-text-ghost">Cancel</button>
+              <button type="submit" class="btn-admin-action-primary">Create Account</button>
+            </div>
+          </form>
+        </div>
+
+        <div id="team-list-view">
+          <!-- Users Table -->
+          <div class="admin-table-container">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th class="sortable" data-user-sort="username" title="Sort by User">
+                    <div class="th-sort-inner"><span>User</span><span class="sort-icon" id="user-sort-username">⇅</span></div>
+                  </th>
+                  <th class="sortable" data-user-sort="role" title="Sort by Role">
+                    <div class="th-sort-inner"><span>Role</span><span class="sort-icon" id="user-sort-role">⇅</span></div>
+                  </th>
+                  <th class="sortable" data-user-sort="total_downloads" title="Sort by Total Downloads">
+                    <div class="th-sort-inner"><span>Downloads</span><span class="sort-icon" id="user-sort-total_downloads">⇅</span></div>
+                  </th>
+                  <th class="sortable" data-user-sort="is_active" title="Sort by Status">
+                    <div class="th-sort-inner"><span>Status</span><span class="sort-icon" id="user-sort-is_active">⇅</span></div>
+                  </th>
+                  <th class="sortable" data-user-sort="created_at" title="Sort by Date Created">
+                    <div class="th-sort-inner"><span>Created</span><span class="sort-icon" id="user-sort-created_at">⇅</span></div>
+                  </th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-tbody">
+                <tr>
+                  <td colspan="6" class="table-placeholder-cell">Loading users…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Inline Team Member Detailed Profile & Report View -->
+        <div id="team-detail-view" class="hidden">
+          <div class="team-breadcrumb-bar">
+            <button type="button" id="btn-back-to-team-list" class="btn-breadcrumb">
+              ← Back to Team Members
+            </button>
+            <div class="user-detail-quick-actions" style="margin-left: auto; display: flex; gap: var(--s-2);">
+              <button type="button" id="user-detail-btn-reset-pass" class="btn-admin-action-secondary">
+                🔑 Reset Password
+              </button>
+              <button type="button" id="user-detail-btn-toggle-status" class="btn-admin-action-secondary">
+                Disable Account
+              </button>
+            </div>
+          </div>
+
+          <!-- User Profile Hero Card -->
+          <div class="user-profile-hero-card">
+            <div class="user-profile-avatar-wrap">
+              <div class="user-profile-avatar" id="user-detail-avatar">👤</div>
+            </div>
+            <div class="user-profile-info">
+              <div class="user-profile-name-row">
+                <h3 class="user-profile-fullname" id="user-detail-fullname">Editor Name</h3>
+                <span class="user-profile-username mono" id="user-detail-username">@username</span>
+                <span class="role-chip" id="user-detail-role">EDITOR</span>
+                <span class="status-badge-active" id="user-detail-status">Active</span>
+              </div>
+              <div class="user-profile-meta-row">
+                <span>📅 Joined: <strong id="user-detail-created">—</strong></span>
+                <span>•</span>
+                <span>🕒 Last Active: <strong id="user-detail-last-login">—</strong></span>
+                <span>•</span>
+                <span>⚡ Active Days: <strong id="user-detail-active-days">0</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Personal User KPI Metrics Strip -->
+          <div class="analytics-kpi-grid" style="margin-top: var(--s-4);">
+            <div class="kpi-card">
+              <div class="kpi-card-header">
+                <span class="kpi-title">TOTAL REQUESTS</span>
+                <span class="kpi-icon">📥</span>
+              </div>
+              <div class="kpi-value" id="user-kpi-total-requests">0</div>
+              <div class="kpi-subtitle">Lifetime requested assets</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-card-header">
+                <span class="kpi-title">COMPLETED DOWNLOADS</span>
+                <span class="kpi-icon">✅</span>
+              </div>
+              <div class="kpi-value" id="user-kpi-completed-downloads">0</div>
+              <div class="kpi-subtitle" id="user-kpi-failed-count">0 failed / cancelled</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-card-header">
+                <span class="kpi-title">LIBRARY REUSES</span>
+                <span class="kpi-icon">♻️</span>
+              </div>
+              <div class="kpi-value" id="user-kpi-reuses" style="color: #10b981;">0</div>
+              <div class="kpi-subtitle" id="user-kpi-bandwidth-saved">0 MB saved from cache</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-card-header">
+                <span class="kpi-title">TEAM REUSE IMPACT</span>
+                <span class="kpi-icon">🤝</span>
+              </div>
+              <div class="kpi-value" id="user-kpi-teammate-reuses" style="color: var(--act-ink);">0</div>
+              <div class="kpi-subtitle">Times their uploads were reused</div>
+            </div>
+          </div>
+
+          <!-- Personal Platform & Category Share -->
+          <div class="analytics-visual-row">
+            <div class="analytics-split-card" style="flex: 1;">
+              <h4 class="chart-title">Personal Platform Usage</h4>
+              <div class="platform-split-container">
+                <div class="platform-split-bar">
+                  <div class="platform-bar-segment artlist" id="user-platform-bar-artlist" style="width: 50%;"></div>
+                  <div class="platform-bar-segment envato" id="user-platform-bar-envato" style="width: 50%;"></div>
+                </div>
+                <div class="platform-legend-row">
+                  <div class="platform-legend-item">
+                    <span class="legend-color artlist"></span>
+                    <span class="platform-name">Artlist:</span>
+                    <strong id="user-platform-count-artlist">0</strong>
+                  </div>
+                  <div class="platform-legend-item">
+                    <span class="legend-color envato"></span>
+                    <span class="platform-name">Envato:</span>
+                    <strong id="user-platform-count-envato">0</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="analytics-split-card" style="flex: 1;">
+              <h4 class="chart-title">Category Breakdown</h4>
+              <div class="category-pills-wrap" id="user-category-pills" style="margin-top: var(--s-3);">
+                <!-- User category pills -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Full Personal Download History -->
+          <div class="analytics-leaderboard-card" style="margin-top: var(--s-4);">
+            <div class="card-title-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--s-3);">
+              <div>
+                <h4 class="chart-title">Personal Asset Download History</h4>
+                <span class="pane-subtitle" id="user-history-subtitle">All files licensed and retrieved by this user</span>
+              </div>
+              <div class="admin-search-wrap">
+                <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input type="text" id="user-history-search" class="admin-search-input" placeholder="Filter user's assets...">
+              </div>
+            </div>
+
+            <div class="admin-table-container">
+              <table class="admin-data-table">
+                <thead>
+                  <tr>
+                    <th>Time / Date</th>
+                    <th>Event</th>
+                    <th>Asset Title / Source</th>
+                    <th>Platform</th>
+                    <th>Variant / Format</th>
+                    <th>Size</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="user-history-tbody">
+                  <tr><td colspan="7" class="table-placeholder-cell">Loading user download history…</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: STUDIO ACTIVITY & REUSE LOG -->
+      <div id="admin-tab-audit" class="admin-tab-pane hidden">
+        <div class="admin-pane-toolbar">
+          <div>
+            <h3 class="pane-title">Studio Activity &amp; Reuse Log</h3>
+            <p class="pane-subtitle">Live trace of fresh downloads, library reuses, and cancellations.</p>
+          </div>
+          <div class="admin-toolbar-actions">
+            <!-- Activity Filter Pills -->
+            <div class="activity-filter-bar" role="group" aria-label="Filter activity events">
+              <button type="button" class="activity-pill-btn active" data-audit-filter="all">All Events</button>
+              <button type="button" class="activity-pill-btn" data-audit-filter="download">⬇️ Downloads</button>
+              <button type="button" class="activity-pill-btn" data-audit-filter="reuse">♻️ Reuses</button>
+              <button type="button" class="activity-pill-btn" data-audit-filter="cancelled">🚫 Cancelled</button>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="admin-search-box">
+              <svg class="admin-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path>
+              </svg>
+              <input type="text" id="admin-audit-search" class="admin-search-input" placeholder="Search user, asset, status..." autocomplete="off" spellcheck="false">
+              <button type="button" id="admin-audit-search-clear" class="admin-search-clear hidden" title="Clear search">✕</button>
+            </div>
+            <button type="button" id="btn-refresh-audit" class="btn-admin-action-secondary">🔄 Refresh</button>
+          </div>
+        </div>
+        <div class="admin-table-container">
+          <table class="admin-data-table audit-data-table">
+            <thead>
+              <tr>
+                <th class="sortable" data-audit-sort="created_at" title="Sort by Time">
+                  <div class="th-sort-inner"><span>Time / Date</span><span class="sort-icon" id="audit-sort-created_at">⇅</span></div>
+                </th>
+                <th>Event</th>
+                <th class="sortable" data-audit-sort="requested_by" title="Sort by User">
+                  <div class="th-sort-inner"><span>User / Requester</span><span class="sort-icon" id="audit-sort-requested_by">⇅</span></div>
+                </th>
+                <th class="sortable" data-audit-sort="title" title="Sort by Asset Title / Filename">
+                  <div class="th-sort-inner"><span>Asset Title / File</span><span class="sort-icon" id="audit-sort-title">⇅</span></div>
+                </th>
+                <th class="sortable" data-audit-sort="provider" title="Sort by Platform">
+                  <div class="th-sort-inner"><span>Platform</span><span class="sort-icon" id="audit-sort-provider">⇅</span></div>
+                </th>
+                <th class="sortable" data-audit-sort="bytes" title="Sort by File Size">
+                  <div class="th-sort-inner"><span>Size</span><span class="sort-icon" id="audit-sort-bytes">⇅</span></div>
+                </th>
+                <th class="sortable" data-audit-sort="status" title="Sort by Job Status">
+                  <div class="th-sort-inner"><span>Status / Action</span><span class="sort-icon" id="audit-sort-status">⇅</span></div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="admin-audit-tbody">
+              <tr>
+                <td colspan="7" class="table-placeholder-cell">Loading activity log…</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: SETTINGS & BACKUP -->
+      <div id="admin-tab-settings" class="admin-tab-pane hidden">
+        <form id="admin-settings-form" class="admin-settings-form">
+          <div class="settings-section-card">
+            <h3 class="settings-section-title">Daily Download Limits</h3>
+            <p class="settings-section-desc">Maximum downloads permitted per day across the studio, separated by platform.</p>
+            <div class="settings-input-row">
+              <div class="settings-field-group">
+                <label for="setting-artlist-limit">Artlist Daily Limit (Downloads/Day)</label>
+                <input type="number" id="setting-artlist-limit" min="1" max="500" value="40" class="admin-num-input">
+              </div>
+              <div class="settings-field-group">
+                <label for="setting-envato-limit">Envato Daily Limit (Downloads/Day)</label>
+                <input type="number" id="setting-envato-limit" min="1" max="500" value="20" class="admin-num-input">
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section-card">
+            <h3 class="settings-section-title">Working Hours Guardrail</h3>
+            <p class="settings-section-desc">Restrict downloads to active studio production hours to prevent suspicious off-hours activity.</p>
+            <div class="settings-switch-row">
+              <label class="switch-control">
+                <input type="checkbox" id="setting-working-hours-toggle">
+                <span class="switch-slider"></span>
+              </label>
+              <span class="switch-label">Enforce Working Hours</span>
+            </div>
+            <div class="settings-input-row" id="working-hours-times-row">
+              <div class="settings-field-group">
+                <label for="setting-hours-start">Start Time</label>
+                <input type="time" id="setting-hours-start" value="09:00">
+              </div>
+              <div class="settings-field-group">
+                <label for="setting-hours-end">End Time</label>
+                <input type="time" id="setting-hours-end" value="21:00">
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section-card">
+            <h3 class="settings-section-title">Library Storage Folder</h3>
+            <p class="settings-section-desc">Local disk directory or network share path where downloaded media files are archived and served from.</p>
+            <div class="settings-input-row">
+              <div class="settings-field-group full-width">
+                <label for="setting-library-path">Storage Folder Path</label>
+                <input type="text" id="setting-library-path" placeholder="e.g. D:\stocks-library-main\stocks-library-main\library or Z:\SharedLibrary">
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section-card">
+            <h3 class="settings-section-title">Hardware Agent Pacing</h3>
+            <p class="settings-section-desc">Cooldown delays between consecutive downloads for realistic human simulation.</p>
+            <div class="settings-input-row">
+              <div class="settings-field-group">
+                <label for="setting-cooldown-min">Min Cooldown (Seconds)</label>
+                <input type="number" id="setting-cooldown-min" min="0" max="300" value="0">
+              </div>
+              <div class="settings-field-group">
+                <label for="setting-cooldown-max">Max Cooldown (Seconds)</label>
+                <input type="number" id="setting-cooldown-max" min="0" max="600" value="0">
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-submit-bar" style="margin-bottom: var(--s-5);">
+            <button type="submit" id="btn-save-settings" class="btn-admin-action-primary">
+              <span class="btn-text">Save System Settings</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Disaster Recovery & Backup Section -->
+        <div class="admin-pane-toolbar" style="margin-top: var(--s-5); border-top: 1px solid var(--line-1); padding-top: var(--s-4);">
+          <div>
+            <h3 class="pane-title">Disaster Recovery &amp; Redundant Backups</h3>
+            <p class="pane-subtitle">Zero-downtime database snapshots and multi-drive protection against laptop failure.</p>
+          </div>
+          <div class="admin-toolbar-actions">
+            <button type="button" id="btn-create-backup-now" class="btn-admin-action-primary">+ Create Local Snapshot Now</button>
+            <button type="button" id="btn-refresh-backups" class="btn-admin-action-secondary">🔄 Refresh</button>
+          </div>
+        </div>
+
+        <!-- Instant Backup Callout Card -->
+        <div class="backup-hero-card">
+          <div class="backup-hero-content">
+            <div class="backup-hero-icon">💾</div>
+            <div class="backup-hero-text">
+              <h4 class="backup-hero-title">1-Click Immediate Database Backup</h4>
+              <p class="backup-hero-desc">Download a complete, consistent snapshot of <code>artlist_relay.db</code> directly to your machine. Contains 100% of user accounts, passwords, download histories, and audit records.</p>
+            </div>
+          </div>
+          <button type="button" id="btn-download-backup-direct" class="btn-admin-action-primary backup-download-btn">
+            ⬇️ Download Backup Snapshot (.db)
+          </button>
+        </div>
+
+        <!-- Backup Configuration Form -->
+        <div class="settings-section-card backup-config-card">
+          <h3 class="settings-section-title">Secondary Drive &amp; Cloud Folder Mirroring</h3>
+          <p class="settings-section-desc">Keep backups safe even if this laptop’s SSD fails. Point this to an external USB drive (e.g. <code>E:\StudioBackups</code>), office NAS (e.g. <code>\\NAS\Backups</code>), or desktop cloud folder (Google Drive, OneDrive, Dropbox).</p>
+          
+          <div class="settings-switch-row" style="margin-bottom: var(--s-3);">
+            <label class="switch-control">
+              <input type="checkbox" id="setting-backup-auto-toggle" checked>
+              <span class="switch-slider"></span>
+            </label>
+            <span class="switch-label">Enable Automated Daily Database Snapshots (Keeps last 30 days)</span>
+          </div>
+
+          <div class="settings-input-row">
+            <div class="settings-field-group full-width">
+              <label for="setting-backup-directory">Backup Target Directory</label>
+              <div style="display: flex; gap: var(--s-2);">
+                <input type="text" id="setting-backup-directory" placeholder="e.g. E:\StudioBackups or D:\stocks-library-main\stocks-library-main\backups" style="flex: 1;">
+                <button type="button" id="btn-save-backup-dir" class="btn-admin-action-secondary">Save Location</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Disaster Recovery Instructions (What if laptop dies?) -->
+        <div class="disaster-recovery-guide-card">
+          <div class="dr-guide-header">
+            <span class="dr-guide-badge">EMERGENCY GUIDE</span>
+            <h4 class="dr-guide-title">What if something happens to this laptop? (Crash, hardware failure, theft)</h4>
+          </div>
+          <div class="dr-steps-grid">
+            <div class="dr-step">
+              <div class="dr-step-num">1</div>
+              <div class="dr-step-body">
+                <strong>Grab Your Latest Backup</strong>
+                <p>Take your latest <code>.db</code> backup (from your USB drive, Google Drive folder, or downloaded snapshot) and your media files.</p>
+              </div>
+            </div>
+            <div class="dr-step">
+              <div class="dr-step-num">2</div>
+              <div class="dr-step-body">
+                <strong>Run Restore Wizard on Any PC</strong>
+                <p>On the new computer, open the Stocks Library folder, double-click <code>restore_backup.bat</code>, and select your backup file.</p>
+              </div>
+            </div>
+            <div class="dr-step">
+              <div class="dr-step-num">3</div>
+              <div class="dr-step-body">
+                <strong>Launch Relay Server</strong>
+                <p>Start <code>start_relay.bat</code>. All studio accounts, quotas, and downloads are 100% restored in under 30 seconds!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stored Snapshots Table -->
+        <div class="backup-table-card">
+          <div class="card-title-row">
+            <h4 class="chart-title">Available Local &amp; Secondary Backup Snapshots</h4>
+            <span class="pane-subtitle" id="backup-directory-display">Location: ./backups</span>
+          </div>
+          <div class="admin-table-container">
+            <table class="admin-data-table">
+              <thead>
+                <tr>
+                  <th>Backup File</th>
+                  <th>Created Date</th>
+                  <th>File Size</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="admin-backups-tbody">
+                <tr><td colspan="4" class="table-placeholder-cell">Loading available snapshots…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<!-- Reset Password In-App Modal Dialog -->
+<div id="reset-password-modal" class="admin-modal-overlay hidden" role="dialog" aria-modal="true" style="z-index: 10001;">
+  <div class="admin-modal-dialog" style="max-width: 440px;">
+    <div class="admin-modal-header">
+      <div class="admin-modal-title-wrap">
+        <div class="admin-shield-icon" style="background: rgba(255, 107, 43, 0.12); border-color: rgba(255, 107, 43, 0.3);">
+          🔑
+        </div>
+        <div>
+          <h3 class="admin-modal-title">Reset User Password</h3>
+          <p class="admin-modal-subtitle" id="reset-modal-subtitle">Set a new password for user</p>
+        </div>
+      </div>
+      <button type="button" id="reset-modal-close" class="admin-close-btn" aria-label="Close">✕</button>
+    </div>
+    <form id="reset-password-form" style="padding: var(--s-4);">
+      <input type="hidden" id="reset-user-id" value="">
+      <div class="form-group" style="margin-bottom: var(--s-4);">
+        <label for="reset-new-password">New Password *</label>
+        <input type="password" id="reset-new-password" required placeholder="Minimum 4 characters" minlength="4" autocomplete="new-password">
+      </div>
+      <div class="form-actions-row">
+        <button type="button" id="btn-cancel-reset" class="btn-text-ghost">Cancel</button>
+        <button type="submit" class="btn-admin-action-primary">Update Password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Self-Service Change Password Modal for Authenticated User -->
+<div id="change-password-modal" class="admin-modal-overlay hidden" role="dialog" aria-modal="true" style="z-index: 10005;">
+  <div class="admin-modal-dialog" style="max-width: 440px;">
+    <div class="admin-modal-header">
+      <div class="admin-modal-title-wrap">
+        <div class="admin-shield-icon" style="background: rgba(255, 183, 77, 0.15); border-color: rgba(255, 183, 77, 0.3); color: #f59e0b;">
+          🔑
+        </div>
+        <div>
+          <h3 class="admin-modal-title">Change Your Password</h3>
+          <p class="admin-modal-subtitle">Update your personal login password</p>
+        </div>
+      </div>
+      <button type="button" id="change-password-modal-close" class="admin-close-btn" aria-label="Close">✕</button>
+    </div>
+    <form id="change-password-form" style="padding: var(--s-4);">
+      <div id="change-password-error-banner" class="studio-notice notice-danger hidden" style="margin-bottom: var(--s-3);">
+        <span id="change-password-error-text">Incorrect current password</span>
+      </div>
+      <div class="form-group" style="margin-bottom: var(--s-3);">
+        <label for="self-current-password">Current Password *</label>
+        <input type="password" id="self-current-password" required placeholder="Enter current password" autocomplete="current-password">
+      </div>
+      <div class="form-group" style="margin-bottom: var(--s-3);">
+        <label for="self-new-password">New Password *</label>
+        <input type="password" id="self-new-password" required placeholder="Minimum 4 characters" minlength="4" autocomplete="new-password">
+      </div>
+      <div class="form-group" style="margin-bottom: var(--s-4);">
+        <label for="self-confirm-password">Confirm New Password *</label>
+        <input type="password" id="self-confirm-password" required placeholder="Re-enter new password" minlength="4" autocomplete="new-password">
+      </div>
+      <div class="form-actions-row">
+        <button type="button" id="btn-cancel-change-password" class="btn-text-ghost">Cancel</button>
+        <button type="submit" id="btn-submit-change-password" class="btn-admin-action-primary">Update Password</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Confirm Action In-App Modal Dialog -->
+<div id="confirm-action-modal" class="admin-modal-overlay hidden" role="dialog" aria-modal="true" style="z-index: 10002;">
+  <div class="admin-modal-dialog" style="max-width: 440px;">
+    <div class="admin-modal-header">
+      <div class="admin-modal-title-wrap">
+        <div class="admin-shield-icon" style="background: rgba(239, 68, 68, 0.15); border-color: rgba(239, 68, 68, 0.3); color: var(--bad-ink);">
+          ⚠️
+        </div>
+        <div>
+          <h3 class="admin-modal-title" id="confirm-modal-title">Confirm Action</h3>
+          <p class="admin-modal-subtitle" id="confirm-modal-subtitle">Are you sure you want to proceed?</p>
+        </div>
+      </div>
+      <button type="button" id="confirm-modal-close" class="admin-close-btn" aria-label="Close">✕</button>
+    </div>
+    <div style="padding: var(--s-4);">
+      <p id="confirm-modal-message" style="font-size: var(--t-xs); color: var(--n-11); margin-bottom: var(--s-4); line-height: 1.5;"></p>
+      <div class="form-actions-row">
+        <button type="button" id="btn-cancel-confirm" class="btn-text-ghost">Cancel</button>
+        <button type="button" id="btn-execute-confirm" class="table-action-btn danger" style="padding: 8px 16px; font-weight: 600;">Confirm Delete</button>
+      </div>
     </div>
   </div>
 </div>
